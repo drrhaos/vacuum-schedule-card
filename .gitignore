@@ -3,6 +3,7 @@ dist/
 *.log
 .DS_Store
 *.js.map
-vacuum-schedule-card.js
 .env
+# Keep compiled file for releases
+!vacuum-schedule-card.js
 

@@ -1,0 +1,32 @@
+name: Validate HACS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check required files
+        run: |
+          echo "Checking repository structure..."
+          test -f vacuum-schedule-card.js && echo "✓ vacuum-schedule-card.js exists" || (echo "✗ vacuum-schedule-card.js missing" && exit 1)
+          test -f hacs.json && echo "✓ hacs.json exists" || (echo "✗ hacs.json missing" && exit 1)
+          test -f README.md && echo "✓ README.md exists" || (echo "✗ README.md missing" && exit 1)
+          echo "All required files present!"
+      
+      - name: Validate hacs.json
+        run: |
+          if ! python3 -m json.tool hacs.json > /dev/null 2>&1; then
+            echo "✗ hacs.json is not valid JSON"
+            exit 1
+          fi
+          echo "✓ hacs.json is valid JSON"
+
