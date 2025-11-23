@@ -1,0 +1,35 @@
+# Пример конфигурации для Home Assistant
+# Добавьте это в ваш configuration.yaml или создайте отдельный файл в папке packages
+
+# Создание input_text helper для хранения расписаний
+# Замените vacuum.xiaomi_m30s на entity_id вашего пылесоса
+input_text:
+  vacuum_schedules_xiaomi_m30s:
+    name: "Расписания уборки M30S"
+    initial: "[]"
+    max: 10000
+
+# Альтернативный вариант: использование input_select (менее предпочтительно)
+# input_select:
+#   vacuum_schedules_xiaomi_m30s:
+#     name: "Расписания уборки M30S"
+#     options:
+#       - "[]"
+
+# Пример автоматизации для уборки (создается автоматически карточкой, но можно создать вручную)
+# automation:
+#   - alias: "Уборка кухни по понедельникам"
+#     trigger:
+#       - platform: time
+#         at: "09:00:00"
+#     condition:
+#       - condition: time
+#         weekday:
+#           - mon
+#     action:
+#       - service: dreame_vacuum.vacuum_clean_segment
+#         target:
+#           entity_id: vacuum.xiaomi_m30s
+#         data:
+#           segments: [16]  # ID комнаты (замените на реальный ID)
+
