@@ -1,9 +1,9 @@
 node_modules/
-dist/
 *.log
 .DS_Store
 *.js.map
 .env
-# Keep compiled file for releases
-!vacuum-schedule-card.js
+# Keep dist folder for releases
+!dist/
+!dist/vacuum-schedule-card.js
 

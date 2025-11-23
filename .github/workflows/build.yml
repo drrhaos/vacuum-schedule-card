@@ -28,8 +28,8 @@ jobs:
       
       - name: Check build output
         run: |
-          if [ ! -f "vacuum-schedule-card.js" ]; then
-            echo "Build failed: vacuum-schedule-card.js not found"
+          if [ ! -f "dist/vacuum-schedule-card.js" ]; then
+            echo "Build failed: dist/vacuum-schedule-card.js not found"
             exit 1
           fi
           echo "Build successful"

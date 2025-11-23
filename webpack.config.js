@@ -4,7 +4,7 @@ module.exports = {
   entry: "./src/vacuum-schedule-card.ts",
   output: {
     filename: "vacuum-schedule-card.js",
-    path: path.resolve(__dirname, "."),
+    path: path.resolve(__dirname, "dist"),
     library: {
       type: "module",
     },

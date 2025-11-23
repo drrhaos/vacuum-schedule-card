@@ -28,7 +28,7 @@
 
 ### Ручная установка
 
-1. Скачайте файл `vacuum-schedule-card.js` из релизов
+1. Скачайте файл `vacuum-schedule-card.js` из релизов (находится в папке `dist/`)
 2. Скопируйте его в папку `www` в конфигурационном каталоге Home Assistant
 3. Добавьте ресурс в Home Assistant:
    - Перейдите в "Настройки" → "Панели управления" → "Lovelace" → "Ресурсы"
@@ -134,13 +134,17 @@ npm run watch
 
 ```
 .
+├── dist/
+│   └── vacuum-schedule-card.js  # Скомпилированный файл
 ├── src/
 │   └── vacuum-schedule-card.ts  # Исходный код карточки
-├── vacuum-schedule-card.js      # Скомпилированный файл
-├── package.json                        # Зависимости проекта
-├── tsconfig.json                       # Конфигурация TypeScript
-├── webpack.config.js                   # Конфигурация сборки
-└── README.md                           # Документация
+├── package.json                 # Зависимости проекта
+├── tsconfig.json                # Конфигурация TypeScript
+├── webpack.config.js            # Конфигурация сборки
+├── hacs.json                    # Конфигурация HACS
+├── LICENSE                      # Лицензия
+├── CHANGELOG.md                 # История изменений
+└── README.md                    # Документация
 ```
 
 ## Поддержка

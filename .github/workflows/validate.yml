@@ -17,7 +17,7 @@ jobs:
       - name: Check required files
         run: |
           echo "Checking repository structure..."
-          test -f vacuum-schedule-card.js && echo "✓ vacuum-schedule-card.js exists" || (echo "✗ vacuum-schedule-card.js missing" && exit 1)
+          test -f dist/vacuum-schedule-card.js && echo "✓ dist/vacuum-schedule-card.js exists" || (echo "✗ dist/vacuum-schedule-card.js missing" && exit 1)
           test -f hacs.json && echo "✓ hacs.json exists" || (echo "✗ hacs.json missing" && exit 1)
           test -f README.md && echo "✓ README.md exists" || (echo "✗ README.md missing" && exit 1)
           echo "All required files present!"

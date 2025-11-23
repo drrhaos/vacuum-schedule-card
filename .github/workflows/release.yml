@@ -27,9 +27,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            vacuum-schedule-card.js
+            dist/vacuum-schedule-card.js
             README.md
             hacs.json
+            LICENSE
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

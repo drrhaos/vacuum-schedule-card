@@ -1,6 +1,7 @@
 {
   "name": "Vacuum Schedule Card",
-  "render_readme": true,
-  "filename": "vacuum-schedule-card.js"
+  "filename": "vacuum-schedule-card.js",
+  "content_in_root": false,
+  "homeassistant": "2023.1.0"
 }
 
