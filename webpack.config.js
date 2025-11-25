@@ -5,12 +5,6 @@ module.exports = {
   output: {
     filename: "vacuum-schedule-card.js",
     path: path.resolve(__dirname, "dist"),
-    library: {
-      type: "module",
-    },
-  },
-  experiments: {
-    outputModule: true,
   },
   module: {
     rules: [

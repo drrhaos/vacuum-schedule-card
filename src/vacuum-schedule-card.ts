@@ -994,3 +994,8 @@ declare global {
   }
 }
 
+// Ensure the custom element is registered
+if (!customElements.get("vacuum-schedule-card")) {
+  customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+}
+
