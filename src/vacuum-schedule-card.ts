@@ -830,8 +830,14 @@ class VacuumScheduleCard extends LitElement {
 
       if (response.ok) {
         const data = await response.json();
-        // Если это объект с ключами - значит используется папка
-        if (data && typeof data === "object" && !Array.isArray(data)) {
+        console.log("Данные автоматизаций для проверки типа:", typeof data, Array.isArray(data));
+        
+        // Если это массив - значит используется файл (старый способ)
+        if (Array.isArray(data)) {
+          return "file";
+        }
+        // Если это объект с ключами - значит используется папка (новый способ)
+        if (data && typeof data === "object") {
           return "folder";
         }
       }
@@ -893,18 +899,10 @@ class VacuumScheduleCard extends LitElement {
 
       if (storageType === "folder") {
         // Используем папку (современный способ) - каждая автоматизация в отдельном файле
-        // Проверяем, существует ли автоматизация
-        let response = await fetch(`/api/config/automation/config/${automationId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const method = response.ok ? "PUT" : "POST";
-        
-        response = await fetch(`/api/config/automation/config/${automationId}`, {
-          method: method,
+        // Для папки всегда используем POST для создания новой автоматизации
+        // Home Assistant автоматически создаст файл в папке automations/
+        const response = await fetch(`/api/config/automation/config/${automationId}`, {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -913,11 +911,25 @@ class VacuumScheduleCard extends LitElement {
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
-          console.warn("Данные автоматизации:", automation);
+          // Если POST не сработал, пробуем PUT (для обновления существующей)
+          const putResponse = await fetch(`/api/config/automation/config/${automationId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(automation),
+          });
+
+          if (!putResponse.ok) {
+            const errorText = await putResponse.text();
+            console.warn(`Не удалось создать/обновить автоматизацию ${automationId}:`, putResponse.status, errorText);
+            console.warn("Данные автоматизации:", automation);
+          } else {
+            console.log(`Автоматизация ${automationId} успешно обновлена (папка, PUT)`);
+          }
         } else {
-          console.log(`Автоматизация ${automationId} успешно ${method === "POST" ? "создана" : "обновлена"} (папка)`);
+          console.log(`Автоматизация ${automationId} успешно создана (папка, POST)`);
         }
       } else {
         // Используем файл (старый способ) - все автоматизации в одном файле
@@ -945,9 +957,9 @@ class VacuumScheduleCard extends LitElement {
         // Добавляем новую автоматизацию
         automations.push(automation);
 
-        // Сохраняем весь список
+        // Сохраняем весь список через PUT (обновление всего файла)
         response = await fetch("/api/config/automation/config", {
-          method: "POST",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -1018,9 +1030,9 @@ class VacuumScheduleCard extends LitElement {
         // Удаляем автоматизацию
         automations = automations.filter((a: any) => a.id !== automationId);
 
-        // Сохраняем обновленный список
+        // Сохраняем обновленный список через PUT (обновление всего файла)
         response = await fetch("/api/config/automation/config", {
-          method: "POST",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
