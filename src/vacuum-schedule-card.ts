@@ -833,7 +833,7 @@ class VacuumScheduleCard extends LitElement {
       condition: [
         {
           condition: "time",
-          weekday: [dayName],
+          weekday: dayName,
         },
       ],
       action: [
@@ -858,8 +858,18 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      const response = await fetch(`/api/config/automation/config/${automationId}`, {
-        method: "PUT",
+      // Сначала проверяем, существует ли автоматизация (используем GET)
+      let response = await fetch(`/api/config/automation/config/${automationId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const method = response.ok ? "PUT" : "POST"; // Если существует - обновляем, иначе создаем
+      
+      response = await fetch(`/api/config/automation/config/${automationId}`, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -869,10 +879,10 @@ class VacuumScheduleCard extends LitElement {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`Не удалось создать автоматизацию ${automationId}:`, response.status, errorText);
+        console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
         console.warn("Данные автоматизации:", automation);
       } else {
-        console.log(`Автоматизация ${automationId} успешно создана`);
+        console.log(`Автоматизация ${automationId} успешно ${method === "POST" ? "создана" : "обновлена"}`);
       }
     } catch (error) {
       console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
