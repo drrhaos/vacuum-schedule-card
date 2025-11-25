@@ -1,6 +1,6 @@
 import { LitElement } from "lit";
 import type { HomeAssistant } from "custom-card-helpers";
-export declare class VacuumScheduleCard extends LitElement {
+declare class VacuumScheduleCard extends LitElement {
     hass: HomeAssistant;
     entity: string;
     static get styles(): import("lit").CSSResult;
@@ -19,3 +19,4 @@ declare global {
         }>;
     }
 }
+export { VacuumScheduleCard };

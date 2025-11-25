@@ -3,7 +3,7 @@ import { customElement, property } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 
 @customElement("vacuum-schedule-card")
-export class VacuumScheduleCard extends LitElement {
+class VacuumScheduleCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property() public entity!: string;
 
@@ -71,6 +71,11 @@ declare global {
   }
 }
 
+// Явная регистрация элемента (на случай, если декоратор не сработает)
+if (typeof customElements !== "undefined" && !customElements.get("vacuum-schedule-card")) {
+  customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+}
+
 // Регистрация карточки для HACS (как в vacuum-card)
 // Выполняется сразу при загрузке модуля
 (window as any).customCards = (window as any).customCards || [];
@@ -80,3 +85,6 @@ declare global {
   name: "Vacuum Schedule Card",
   description: "Карточка для создания расписания уборки пылесоса",
 });
+
+// Экспорт для совместимости
+export { VacuumScheduleCard };
