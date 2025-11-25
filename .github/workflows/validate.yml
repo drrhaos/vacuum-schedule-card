@@ -14,12 +14,25 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build project
+        run: npm run build
+      
       - name: Check required files
         run: |
           echo "Checking repository structure..."
           test -f dist/vacuum-schedule-card.js && echo "✓ dist/vacuum-schedule-card.js exists" || (echo "✗ dist/vacuum-schedule-card.js missing" && exit 1)
           test -f hacs.json && echo "✓ hacs.json exists" || (echo "✗ hacs.json missing" && exit 1)
           test -f README.md && echo "✓ README.md exists" || (echo "✗ README.md missing" && exit 1)
+          test -f LICENSE && echo "✓ LICENSE exists" || (echo "⚠ LICENSE missing (optional)")
           echo "All required files present!"
       
       - name: Validate hacs.json
@@ -29,4 +42,13 @@ jobs:
             exit 1
           fi
           echo "✓ hacs.json is valid JSON"
+      
+      - name: Check file size
+        run: |
+          SIZE=$(stat -f%z dist/vacuum-schedule-card.js 2>/dev/null || stat -c%s dist/vacuum-schedule-card.js 2>/dev/null || echo "0")
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "⚠ Warning: dist/vacuum-schedule-card.js is very small ($SIZE bytes)"
+          else
+            echo "✓ dist/vacuum-schedule-card.js size: $SIZE bytes"
+          fi
 
