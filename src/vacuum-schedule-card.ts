@@ -47,6 +47,7 @@ class VacuumScheduleCard extends LitElement {
     const entityName = config.entity.replace("vacuum.", "");
     this._schedulesEntityId = `input_text.vacuum_schedules_${entityName}`;
     this._loadSchedules();
+    this._loadRooms();
   }
 
   connectedCallback(): void {
@@ -97,6 +98,9 @@ class VacuumScheduleCard extends LitElement {
         { id: 19, name: "Ванная" },
       ];
     }
+    
+    console.log("Загружено комнат:", this._rooms.length, this._rooms);
+    this.requestUpdate();
   }
 
   private async _loadSchedules(): Promise<void> {
@@ -465,7 +469,7 @@ class VacuumScheduleCard extends LitElement {
             </div>
 
             <div class="form-group">
-              <label class="form-label">Комнаты для уборки</label>
+              <label class="form-label">Комнаты для уборки (${this._rooms.length} доступно)</label>
               <div class="rooms-selector">
                 ${this._rooms.length > 0 ? html`
                   <div class="select-all-rooms">
