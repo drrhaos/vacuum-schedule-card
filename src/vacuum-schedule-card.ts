@@ -177,19 +177,20 @@ class VacuumScheduleCard extends LitElement {
         --mdc-theme-primary: var(--primary-color);
       }
       .dialog {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        display: flex !important;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: 99999 !important;
+        pointer-events: auto;
       }
       .dialog-content {
-        background: var(--card-background-color, #fff);
+        background: var(--card-background-color, #fff) !important;
         border-radius: 8px;
         padding: 24px;
         max-width: 500px;
@@ -197,6 +198,8 @@ class VacuumScheduleCard extends LitElement {
         max-height: 90vh;
         overflow-y: auto;
         box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        position: relative;
+        z-index: 100000;
       }
       .dialog-header {
         font-size: 20px;
@@ -337,10 +340,10 @@ class VacuumScheduleCard extends LitElement {
               `}
         </div>
       </ha-card>
-
       ${this._showAddDialog ? html`
         <div class="dialog" @click=${(e: MouseEvent) => {
-          if (e.target === e.currentTarget) {
+          const target = e.target as HTMLElement;
+          if (target.classList.contains("dialog")) {
             this._closeDialog();
           }
         }}>
@@ -405,6 +408,7 @@ class VacuumScheduleCard extends LitElement {
   }
 
   private _addSchedule(): void {
+    console.log("_addSchedule called");
     this._newSchedule = {
       enabled: true,
       days: [],
@@ -412,7 +416,10 @@ class VacuumScheduleCard extends LitElement {
       rooms: [],
     };
     this._editingSchedule = undefined;
+    this._error = undefined;
     this._showAddDialog = true;
+    console.log("_showAddDialog set to:", this._showAddDialog);
+    this.requestUpdate();
   }
 
   private _toggleDay(day: number): void {
@@ -435,12 +442,14 @@ class VacuumScheduleCard extends LitElement {
   private _closeDialog(): void {
     this._showAddDialog = false;
     this._editingSchedule = undefined;
+    this._error = undefined;
     this._newSchedule = {
       enabled: true,
       days: [],
       time: "09:00",
       rooms: [],
     };
+    this.requestUpdate();
   }
 
   private _editSchedule(schedule: Schedule): void {
