@@ -36,6 +36,7 @@ declare class VacuumScheduleCard extends LitElement {
     private _toggleSchedule;
     private _deleteSchedule;
     private _getDayNameForAutomation;
+    private _checkAutomationStorageType;
     private _createAutomation;
     private _deleteAutomation;
     private _updateAutomationsForSchedule;

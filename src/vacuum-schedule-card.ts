@@ -813,6 +813,36 @@ class VacuumScheduleCard extends LitElement {
     return dayNames[day] || "mon";
   }
 
+  private async _checkAutomationStorageType(): Promise<"file" | "folder"> {
+    if (!this.hass) return "folder"; // По умолчанию используем папку
+    
+    try {
+      const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
+      if (!token) return "folder";
+
+      // Проверяем, есть ли автоматизации в папке (новый способ)
+      const response = await fetch("/api/config/automation/config", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Если это объект с ключами - значит используется папка
+        if (data && typeof data === "object" && !Array.isArray(data)) {
+          return "folder";
+        }
+      }
+    } catch (error) {
+      console.warn("Ошибка проверки типа хранения автоматизаций:", error);
+    }
+    
+    // По умолчанию используем папку (современный способ)
+    return "folder";
+  }
+
   private async _createAutomation(schedule: Schedule, day: number): Promise<void> {
     if (!this.hass) return;
 
@@ -851,38 +881,86 @@ class VacuumScheduleCard extends LitElement {
     };
 
     try {
-      // Используем REST API для создания автоматизации
       const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
       if (!token) {
         console.warn("Токен авторизации не найден для создания автоматизации");
         return;
       }
 
-      // Сначала проверяем, существует ли автоматизация (используем GET)
-      let response = await fetch(`/api/config/automation/config/${automationId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Проверяем тип хранения автоматизаций
+      const storageType = await this._checkAutomationStorageType();
+      console.log(`Тип хранения автоматизаций: ${storageType}`);
 
-      const method = response.ok ? "PUT" : "POST"; // Если существует - обновляем, иначе создаем
-      
-      response = await fetch(`/api/config/automation/config/${automationId}`, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(automation),
-      });
+      if (storageType === "folder") {
+        // Используем папку (современный способ) - каждая автоматизация в отдельном файле
+        // Проверяем, существует ли автоматизация
+        let response = await fetch(`/api/config/automation/config/${automationId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
-        console.warn("Данные автоматизации:", automation);
+        const method = response.ok ? "PUT" : "POST";
+        
+        response = await fetch(`/api/config/automation/config/${automationId}`, {
+          method: method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(automation),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
+          console.warn("Данные автоматизации:", automation);
+        } else {
+          console.log(`Автоматизация ${automationId} успешно ${method === "POST" ? "создана" : "обновлена"} (папка)`);
+        }
       } else {
-        console.log(`Автоматизация ${automationId} успешно ${method === "POST" ? "создана" : "обновлена"}`);
+        // Используем файл (старый способ) - все автоматизации в одном файле
+        // Для файла нужно получить все автоматизации, добавить новую и сохранить весь список
+        let response = await fetch("/api/config/automation/config", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.warn("Не удалось получить список автоматизаций");
+          return;
+        }
+
+        let automations = await response.json();
+        if (!Array.isArray(automations)) {
+          automations = [];
+        }
+
+        // Удаляем старую автоматизацию с таким же ID, если есть
+        automations = automations.filter((a: any) => a.id !== automationId);
+        
+        // Добавляем новую автоматизацию
+        automations.push(automation);
+
+        // Сохраняем весь список
+        response = await fetch("/api/config/automation/config", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(automations),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn(`Не удалось сохранить автоматизацию ${automationId} в файл:`, response.status, errorText);
+        } else {
+          console.log(`Автоматизация ${automationId} успешно сохранена в файл`);
+        }
       }
     } catch (error) {
       console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
@@ -901,17 +979,60 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      const response = await fetch(`/api/config/automation/config/${automationId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Проверяем тип хранения автоматизаций
+      const storageType = await this._checkAutomationStorageType();
 
-      if (!response.ok) {
-        console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
+      if (storageType === "folder") {
+        // Удаляем из папки
+        const response = await fetch(`/api/config/automation/config/${automationId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
+        } else {
+          console.log(`Автоматизация ${automationId} успешно удалена (папка)`);
+        }
       } else {
-        console.log(`Автоматизация ${automationId} успешно удалена`);
+        // Удаляем из файла - получаем все автоматизации, удаляем нужную, сохраняем
+        let response = await fetch("/api/config/automation/config", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.warn("Не удалось получить список автоматизаций для удаления");
+          return;
+        }
+
+        let automations = await response.json();
+        if (!Array.isArray(automations)) {
+          automations = [];
+        }
+
+        // Удаляем автоматизацию
+        automations = automations.filter((a: any) => a.id !== automationId);
+
+        // Сохраняем обновленный список
+        response = await fetch("/api/config/automation/config", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(automations),
+        });
+
+        if (!response.ok) {
+          console.warn(`Не удалось удалить автоматизацию ${automationId} из файла:`, response.status);
+        } else {
+          console.log(`Автоматизация ${automationId} успешно удалена из файла`);
+        }
       }
     } catch (error) {
       console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
