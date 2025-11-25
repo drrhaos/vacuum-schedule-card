@@ -817,88 +817,112 @@ class VacuumScheduleCard extends LitElement {
     if (!this.hass) return "file"; // По умолчанию используем файл (более совместимо)
     
     try {
+      // Пытаемся прочитать configuration.yaml через WebSocket API
+      // Используем hass.connection для вызова WebSocket команды
+      if (this.hass.connection && typeof (this.hass.connection as any).sendMessagePromise === "function") {
+        try {
+          // Пробуем получить конфигурацию через WebSocket
+          const result: any = await (this.hass.connection as any).sendMessagePromise({
+            type: "config/get",
+          });
+          
+          if (result && result.success && result.result) {
+            const config = result.result;
+            console.log("Конфигурация Home Assistant получена через WebSocket:", config);
+            
+            // Проверяем секцию automation в конфигурации
+            // В Home Assistant конфигурация может содержать информацию о том, как загружаются автоматизации
+            // Но это может быть не доступно через этот API
+          }
+        } catch (wsError) {
+          console.log("WebSocket API недоступен, пробуем другие способы:", wsError);
+        }
+      }
+
+      // Альтернативный способ: читаем файл configuration.yaml через API файлов (если доступно)
       const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
       if (!token) return "file";
 
-      // Пытаемся прочитать конфигурацию через API
-      const configResponse = await fetch("/api/config/config", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Пробуем прочитать файл configuration.yaml напрямую
+      // В некоторых установках Home Assistant есть доступ к файлам через API
+      try {
+        const fileResponse = await fetch("/api/hassio/ingress/core_configurator/config/configuration.yaml", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (configResponse.ok) {
-        const config = await configResponse.json();
-        console.log("Конфигурация Home Assistant:", config);
-        
-        // Проверяем секцию automation в конфигурации
-        if (config.automation !== undefined) {
-          const automationConfig = config.automation;
-          console.log("Секция automation в конфигурации:", typeof automationConfig, automationConfig);
+        if (fileResponse.ok) {
+          const yamlContent = await fileResponse.text();
+          console.log("Содержимое configuration.yaml получено");
           
-          // Если это строка, проверяем на наличие include_dir (папка)
-          if (typeof automationConfig === "string") {
-            if (automationConfig.includes("include_dir")) {
-              console.log("Тип хранения автоматизаций: folder (определено из configuration.yaml - include_dir)");
-              return "folder";
-            } else if (automationConfig.includes("include")) {
-              console.log("Тип хранения автоматизаций: file (определено из configuration.yaml - include)");
-              return "file";
-            }
-          }
-          
-          // Если это массив - это файл или массив в config
-          if (Array.isArray(automationConfig)) {
-            console.log("Тип хранения автоматизаций: file (определено из configuration.yaml - массив)");
-            return "file";
-          }
-          
-          // Если это объект с ключами (не массив) - это может быть папка
-          if (automationConfig && typeof automationConfig === "object" && !Array.isArray(automationConfig)) {
-            // Проверяем, есть ли ключи, которые указывают на папку
-            const keys = Object.keys(automationConfig);
-            if (keys.length > 0) {
-              console.log("Тип хранения автоматизаций: folder (определено из configuration.yaml - объект с ключами)");
-              return "folder";
+          // Парсим YAML содержимое для поиска секции automation
+          // Ищем строки с automation: и проверяем наличие include_dir
+          if (yamlContent.includes("automation:")) {
+            const automationMatch = yamlContent.match(/automation:\s*(.+)/);
+            if (automationMatch && automationMatch[1]) {
+              const automationConfig = automationMatch[1].trim();
+              console.log("Найдена секция automation в configuration.yaml:", automationConfig);
+              
+              // Проверяем на наличие include_dir (папка)
+              if (automationConfig.includes("include_dir")) {
+                console.log("Тип хранения автоматизаций: folder (определено из configuration.yaml - include_dir)");
+                return "folder";
+              }
+              
+              // Проверяем на наличие include (файл)
+              if (automationConfig.includes("include") && !automationConfig.includes("include_dir")) {
+                console.log("Тип хранения автоматизаций: file (определено из configuration.yaml - include)");
+                return "file";
+              }
             }
           }
         }
+      } catch (fileError) {
+        console.log("Не удалось прочитать configuration.yaml через API файлов:", fileError);
       }
 
-      // Если не удалось определить из конфигурации, проверяем через API автоматизаций
-      const response = await fetch("/api/config/automation/config", {
+      // Если не удалось прочитать файл, пробуем определить через попытку создания автоматизации
+      // Пробуем создать тестовую автоматизацию через папку
+      const testAutomationId = "vacuum_schedule_test_storage_check";
+      const testResponse = await fetch(`/api/config/automation/config/${testAutomationId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.status === 404) {
-        // 404 означает, что используется файл (старый способ)
-        console.log("GET /api/config/automation/config вернул 404 - используется файл");
-        return "file";
+      // Если endpoint для папки доступен (404 или 405 означает, что endpoint существует)
+      if (testResponse.status === 404 || testResponse.status === 405) {
+        console.log("Определен тип хранения: folder (endpoint /api/config/automation/config/{id} доступен)");
+        return "folder";
       }
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Данные автоматизаций для проверки типа:", typeof data, Array.isArray(data), response.status);
-        
-        // Если это массив - значит используется файл (старый способ)
+      // Если endpoint для папки не доступен, пробуем файл
+      const fileTestResponse = await fetch("/api/config/automation/config", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (fileTestResponse.ok) {
+        const data = await fileTestResponse.json();
         if (Array.isArray(data)) {
+          console.log("Определен тип хранения: file (endpoint /api/config/automation/config возвращает массив)");
           return "file";
         }
-        // Если это объект с ключами - значит используется папка (новый способ)
-        if (data && typeof data === "object") {
-          return "folder";
-        }
       }
+
+      // По умолчанию используем папку (современный способ)
+      console.log("Не удалось определить тип хранения, используем папку по умолчанию");
+      return "folder";
     } catch (error) {
       console.warn("Ошибка проверки типа хранения автоматизаций:", error);
+      // По умолчанию используем папку (современный способ)
+      return "folder";
     }
-    
-    // По умолчанию используем файл (более совместимо со старыми версиями HA)
-    return "file";
   }
 
   private async _createAutomation(schedule: Schedule, day: number): Promise<void> {
@@ -1007,11 +1031,31 @@ class VacuumScheduleCard extends LitElement {
             automations = [];
           }
         } else if (response.status === 404) {
-          console.log("Файл автоматизаций не найден (404), создаем новый");
-          automations = [];
+          console.log("Файл автоматизаций не найден (404), возможно используется папка");
+          // Если файл не найден, возможно используется папка
+          // Попробуем использовать папку вместо файла
+          console.log("Попытка использовать папку вместо файла...");
+          const folderResponse = await fetch(`/api/config/automation/config/${automationId}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(automation),
+          });
+          
+          if (folderResponse.ok) {
+            console.log(`Автоматизация ${automationId} успешно создана в папке (fallback)`);
+            return;
+          } else {
+            const errorText = await folderResponse.text();
+            console.warn(`Не удалось создать автоматизацию в папке (fallback):`, folderResponse.status, errorText);
+            // Продолжаем с пустым массивом для файла
+            automations = [];
+          }
         } else {
           console.warn("Не удалось получить список автоматизаций:", response.status);
-          // Продолжаем с пустым массивом вместо return
+          // Продолжаем с пустым массивом
           automations = [];
         }
 
