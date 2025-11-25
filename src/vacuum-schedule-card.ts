@@ -288,68 +288,43 @@ class VacuumScheduleCard extends LitElement {
         console.warn("Автоматизации расписаний не найдены!");
       }
 
-      // Обрабатываем каждую найденную автоматизацию
-      for (const entityId of automationEntities) {
+      // Получаем список всех автоматизаций через WebSocket API для получения реальных id
+      let allAutomationsConfig: any[] = [];
+      
+      if (this.hass.connection && typeof (this.hass.connection as any).sendMessagePromise === "function") {
         try {
-          const automationState = this.hass.states[entityId];
-          const automationId = entityId.replace("automation.", "");
+          // Получаем список всех автоматизаций
+          const wsListResult: any = await (this.hass.connection as any).sendMessagePromise({
+            type: "automation/list",
+          });
           
-          console.log(`Обработка автоматизации: ${automationId}`);
-
-          // Получаем конфигурацию автоматизации через WebSocket API (как в auto-entities)
-          let automationConfig: any = null;
-          
-          // Сначала пробуем WebSocket API (предпочтительный способ)
-          if (this.hass.connection && typeof (this.hass.connection as any).sendMessagePromise === "function") {
-            try {
-              const wsResult: any = await (this.hass.connection as any).sendMessagePromise({
-                type: "automation/get",
-                automation_id: automationId,
-              });
-              
-              if (wsResult && wsResult.success && wsResult.result) {
-                automationConfig = wsResult.result;
-                console.log(`Конфигурация получена через WebSocket для ${automationId}`);
-              }
-            } catch (wsError) {
-              console.warn(`WebSocket API не сработал для ${automationId}:`, wsError);
-            }
+          if (wsListResult && wsListResult.success && Array.isArray(wsListResult.result)) {
+            allAutomationsConfig = wsListResult.result;
+            console.log("Получено автоматизаций через WebSocket list:", allAutomationsConfig.length);
           }
-          
-          // Если WebSocket не сработал, пробуем REST API
-          if (!automationConfig) {
-            try {
-              const response = await fetch(`/api/config/automation/config/${automationId}`, {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              });
-
-              if (response.ok) {
-                automationConfig = await response.json();
-                console.log(`Конфигурация получена через REST API для ${automationId}`);
-              } else {
-                console.warn(`REST API вернул ${response.status} для ${automationId}`);
-              }
-            } catch (e) {
-              console.warn(`Ошибка получения конфигурации через REST API для ${automationId}:`, e);
-            }
-          }
-
-          // Если конфигурация не найдена, пропускаем
-          if (!automationConfig) {
-            console.warn(`Конфигурация не найдена для автоматизации ${automationId}`);
-            continue;
-          }
-
-          console.log(`Конфигурация автоматизации ${automationId}:`, automationConfig);
-          
+        } catch (wsListError) {
+          console.warn("Не удалось получить список автоматизаций через WebSocket:", wsListError);
+        }
+      }
+      
+      // Обрабатываем автоматизации из списка напрямую (не по entity_id)
+      // Ищем все автоматизации с id вида vacuum_schedule_*_day_*
+      const scheduleAutomations = allAutomationsConfig.filter((a: any) => {
+        const id = a.id || "";
+        return id.startsWith("vacuum_schedule_") && id.includes("_day_");
+      });
+      
+      console.log("Найдено автоматизаций расписаний в списке:", scheduleAutomations.length);
+      console.log("ID автоматизаций расписаний:", scheduleAutomations.map((a: any) => a.id));
+      
+      // Обрабатываем каждую автоматизацию из списка
+      for (const automationConfig of scheduleAutomations) {
+        try {
           // Извлекаем scheduleId и day из реального id автоматизации
           // Формат id: vacuum_schedule_schedule_1764103314127_day_3
           const configId = automationConfig.id;
           if (!configId) {
-            console.warn(`ID не найден в конфигурации автоматизации ${automationId}`);
+            console.warn(`ID не найден в конфигурации автоматизации`);
             continue;
           }
           
@@ -363,13 +338,33 @@ class VacuumScheduleCard extends LitElement {
           const scheduleId = idMatch[1];
           const day = parseInt(idMatch[2], 10);
           
-          console.log(`Извлечено из ID: scheduleId=${scheduleId}, day=${day}`);
+          console.log(`Обработка автоматизации: id=${configId}, scheduleId=${scheduleId}, day=${day}`);
 
+          // Находим entity_id для этой автоматизации (может быть разным из-за alias)
+          // Пробуем найти по id или по описанию
+          let entityId = `automation.${configId}`;
+          let automationState = this.hass.states[entityId];
+          
+          // Если не нашли по id, ищем по описанию в hass.states
+          if (!automationState) {
+            for (const eId of automationEntities) {
+              const state = this.hass.states[eId];
+              if (state && state.attributes) {
+                const description = state.attributes.description || "";
+                if (description.includes(`расписания уборки`) && description.includes(scheduleId)) {
+                  entityId = eId;
+                  automationState = state;
+                  break;
+                }
+              }
+            }
+          }
+          
           // Извлекаем время из trigger
           const triggers = Array.isArray(automationConfig.trigger) ? automationConfig.trigger : [automationConfig.trigger];
           const timeTrigger = triggers.find((t: any) => t.platform === "time");
           if (!timeTrigger || !timeTrigger.at) {
-            console.warn(`Не найден time trigger в автоматизации ${automationId}`);
+            console.warn(`Не найден time trigger в автоматизации ${configId}`);
             continue;
           }
 
@@ -411,7 +406,7 @@ class VacuumScheduleCard extends LitElement {
             schedule.enabled = true;
           }
         } catch (e) {
-          console.warn(`Ошибка обработки автоматизации ${entityId}:`, e);
+          console.warn(`Ошибка обработки автоматизации:`, e);
         }
       }
 
