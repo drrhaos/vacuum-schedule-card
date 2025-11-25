@@ -9,9 +9,15 @@ module.exports = {
     library: {
       type: "module",
     },
+    environment: {
+      module: true,
+    },
   },
   experiments: {
     outputModule: true,
+  },
+  optimization: {
+    minimize: true,
   },
   module: {
     rules: [

@@ -71,20 +71,23 @@ declare global {
   }
 }
 
-// Явная регистрация элемента (на случай, если декоратор не сработает)
-if (typeof customElements !== "undefined" && !customElements.get("vacuum-schedule-card")) {
-  customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+// Явная регистрация элемента - выполняется сразу при загрузке модуля
+if (typeof customElements !== "undefined") {
+  if (!customElements.get("vacuum-schedule-card")) {
+    customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+  }
 }
 
 // Регистрация карточки для HACS (как в vacuum-card)
-// Выполняется сразу при загрузке модуля
-(window as any).customCards = (window as any).customCards || [];
-(window as any).customCards.push({
-  preview: true,
-  type: "vacuum-schedule-card",
-  name: "Vacuum Schedule Card",
-  description: "Карточка для создания расписания уборки пылесоса",
-});
+if (typeof window !== "undefined") {
+  (window as any).customCards = (window as any).customCards || [];
+  (window as any).customCards.push({
+    preview: true,
+    type: "vacuum-schedule-card",
+    name: "Vacuum Schedule Card",
+    description: "Карточка для создания расписания уборки пылесоса",
+  });
+}
 
 // Экспорт для совместимости
 export { VacuumScheduleCard };
