@@ -760,8 +760,9 @@ class VacuumScheduleCard extends LitElement {
   private async _toggleSchedule(schedule: Schedule, enabled: boolean): Promise<void> {
     if (!this.hass || !this._schedulesEntityId) return;
 
+    const updatedSchedule = { ...schedule, enabled };
     const schedules = this._schedules.map(s =>
-      s.id === schedule.id ? { ...s, enabled } : s
+      s.id === schedule.id ? updatedSchedule : s
     );
 
     try {
@@ -771,6 +772,9 @@ class VacuumScheduleCard extends LitElement {
       });
       
       this._schedules = schedules;
+      
+      // Обновляем автоматизации (создаем или удаляем в зависимости от состояния)
+      await this._updateAutomationsForSchedule(updatedSchedule, schedule);
     } catch (error) {
       this._error = `${this._t("error_updating")} ${error}`;
       console.error("Ошибка обновления расписания:", error);
@@ -782,6 +786,11 @@ class VacuumScheduleCard extends LitElement {
 
     if (!confirm(this._t("delete_confirm"))) {
       return;
+    }
+
+    // Удаляем автоматизации для этого расписания
+    for (const day of schedule.days) {
+      await this._deleteAutomation(schedule.id, day);
     }
 
     const schedules = this._schedules.filter(s => s.id !== schedule.id);
@@ -796,6 +805,114 @@ class VacuumScheduleCard extends LitElement {
     } catch (error) {
       this._error = `${this._t("error_deleting")} ${error}`;
       console.error("Ошибка удаления расписания:", error);
+    }
+  }
+
+  private _getDayNameForAutomation(day: number): string {
+    const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    return dayNames[day] || "mon";
+  }
+
+  private async _createAutomation(schedule: Schedule, day: number): Promise<void> {
+    if (!this.hass) return;
+
+    const automationId = `vacuum_schedule_${schedule.id}_day_${day}`;
+    const dayName = this._getDayNameForAutomation(day);
+    const [hours, minutes] = schedule.time.split(":").map(Number);
+    
+    const automation = {
+      id: automationId,
+      alias: `${this._t("schedule_title")} ${schedule.time} - ${this._getDayNames()[day]} (${schedule.id})`,
+      description: `Автоматизация для расписания уборки ${schedule.time} в ${this._getDayNames()[day]}`,
+      trigger: [
+        {
+          platform: "time",
+          at: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`,
+        },
+      ],
+      condition: [
+        {
+          condition: "time",
+          weekday: [dayName],
+        },
+      ],
+      action: [
+        {
+          service: "dreame_vacuum.vacuum_clean_segment",
+          target: {
+            entity_id: this.entity,
+          },
+          data: {
+            segments: schedule.rooms.length > 0 ? schedule.rooms : undefined,
+          },
+        },
+      ],
+      mode: "single",
+    };
+
+    try {
+      // Используем REST API для создания автоматизации
+      const response = await fetch(`/api/config/automation/config/${automationId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.hass.auth.data.access_token}`,
+        },
+        body: JSON.stringify(automation),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn(`Не удалось создать автоматизацию ${automationId}:`, errorText);
+        // Не показываем ошибку пользователю, так как автоматизации не критичны
+      }
+    } catch (error) {
+      console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
+    }
+  }
+
+  private async _deleteAutomation(scheduleId: string, day: number): Promise<void> {
+    if (!this.hass) return;
+
+    const automationId = `vacuum_schedule_${scheduleId}_day_${day}`;
+
+    try {
+      const response = await fetch(`/api/config/automation/config/${automationId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${this.hass.auth.data.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`Не удалось удалить автоматизацию ${automationId}`);
+      }
+    } catch (error) {
+      console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
+    }
+  }
+
+  private async _updateAutomationsForSchedule(schedule: Schedule, oldSchedule?: Schedule): Promise<void> {
+    if (!schedule.enabled) {
+      // Если расписание выключено, удаляем все автоматизации
+      const daysToDelete = oldSchedule ? oldSchedule.days : schedule.days;
+      for (const day of daysToDelete) {
+        await this._deleteAutomation(schedule.id, day);
+      }
+      return;
+    }
+
+    // Удаляем старые автоматизации, если расписание редактировалось
+    if (oldSchedule) {
+      const daysToRemove = oldSchedule.days.filter(d => !schedule.days.includes(d));
+      for (const day of daysToRemove) {
+        await this._deleteAutomation(schedule.id, day);
+      }
+    }
+
+    // Создаем/обновляем автоматизации для каждого дня
+    for (const day of schedule.days) {
+      await this._createAutomation(schedule, day);
     }
   }
 
@@ -825,6 +942,8 @@ class VacuumScheduleCard extends LitElement {
     };
 
     let schedules = [...this._schedules];
+    const oldSchedule = this._editingSchedule;
+    
     if (this._editingSchedule) {
       const index = schedules.findIndex(s => s.id === this._editingSchedule!.id);
       if (index > -1) {
@@ -841,6 +960,10 @@ class VacuumScheduleCard extends LitElement {
       });
       
       this._schedules = schedules;
+      
+      // Создаем/обновляем автоматизации
+      await this._updateAutomationsForSchedule(schedule, oldSchedule);
+      
       this._closeDialog();
       this._error = undefined;
     } catch (error) {
@@ -881,3 +1004,4 @@ window.customCards.push({
 
 // Экспорт для совместимости
 export { VacuumScheduleCard };
+
