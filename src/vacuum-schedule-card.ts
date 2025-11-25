@@ -814,13 +814,59 @@ class VacuumScheduleCard extends LitElement {
   }
 
   private async _checkAutomationStorageType(): Promise<"file" | "folder"> {
-    if (!this.hass) return "folder"; // По умолчанию используем папку
+    if (!this.hass) return "file"; // По умолчанию используем файл (более совместимо)
     
     try {
       const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
-      if (!token) return "folder";
+      if (!token) return "file";
 
-      // Проверяем, есть ли автоматизации в папке (новый способ)
+      // Пытаемся прочитать конфигурацию через API
+      const configResponse = await fetch("/api/config/config", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (configResponse.ok) {
+        const config = await configResponse.json();
+        console.log("Конфигурация Home Assistant:", config);
+        
+        // Проверяем секцию automation в конфигурации
+        if (config.automation !== undefined) {
+          const automationConfig = config.automation;
+          console.log("Секция automation в конфигурации:", typeof automationConfig, automationConfig);
+          
+          // Если это строка, проверяем на наличие include_dir (папка)
+          if (typeof automationConfig === "string") {
+            if (automationConfig.includes("include_dir")) {
+              console.log("Тип хранения автоматизаций: folder (определено из configuration.yaml - include_dir)");
+              return "folder";
+            } else if (automationConfig.includes("include")) {
+              console.log("Тип хранения автоматизаций: file (определено из configuration.yaml - include)");
+              return "file";
+            }
+          }
+          
+          // Если это массив - это файл или массив в config
+          if (Array.isArray(automationConfig)) {
+            console.log("Тип хранения автоматизаций: file (определено из configuration.yaml - массив)");
+            return "file";
+          }
+          
+          // Если это объект с ключами (не массив) - это может быть папка
+          if (automationConfig && typeof automationConfig === "object" && !Array.isArray(automationConfig)) {
+            // Проверяем, есть ли ключи, которые указывают на папку
+            const keys = Object.keys(automationConfig);
+            if (keys.length > 0) {
+              console.log("Тип хранения автоматизаций: folder (определено из configuration.yaml - объект с ключами)");
+              return "folder";
+            }
+          }
+        }
+      }
+
+      // Если не удалось определить из конфигурации, проверяем через API автоматизаций
       const response = await fetch("/api/config/automation/config", {
         method: "GET",
         headers: {
@@ -828,9 +874,15 @@ class VacuumScheduleCard extends LitElement {
         },
       });
 
+      if (response.status === 404) {
+        // 404 означает, что используется файл (старый способ)
+        console.log("GET /api/config/automation/config вернул 404 - используется файл");
+        return "file";
+      }
+
       if (response.ok) {
         const data = await response.json();
-        console.log("Данные автоматизаций для проверки типа:", typeof data, Array.isArray(data));
+        console.log("Данные автоматизаций для проверки типа:", typeof data, Array.isArray(data), response.status);
         
         // Если это массив - значит используется файл (старый способ)
         if (Array.isArray(data)) {
@@ -845,8 +897,8 @@ class VacuumScheduleCard extends LitElement {
       console.warn("Ошибка проверки типа хранения автоматизаций:", error);
     }
     
-    // По умолчанию используем папку (современный способ)
-    return "folder";
+    // По умолчанию используем файл (более совместимо со старыми версиями HA)
+    return "file";
   }
 
   private async _createAutomation(schedule: Schedule, day: number): Promise<void> {
@@ -934,6 +986,8 @@ class VacuumScheduleCard extends LitElement {
       } else {
         // Используем файл (старый способ) - все автоматизации в одном файле
         // Для файла нужно получить все автоматизации, добавить новую и сохранить весь список
+        console.log("Используется файл для хранения автоматизаций");
+        
         let response = await fetch("/api/config/automation/config", {
           method: "GET",
           headers: {
@@ -941,21 +995,37 @@ class VacuumScheduleCard extends LitElement {
           },
         });
 
-        if (!response.ok) {
-          console.warn("Не удалось получить список автоматизаций");
-          return;
-        }
+        let automations: any[] = [];
 
-        let automations = await response.json();
-        if (!Array.isArray(automations)) {
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            automations = data;
+            console.log(`Получено ${automations.length} существующих автоматизаций из файла`);
+          } else {
+            console.log("Ответ не является массивом, инициализируем пустой массив");
+            automations = [];
+          }
+        } else if (response.status === 404) {
+          console.log("Файл автоматизаций не найден (404), создаем новый");
+          automations = [];
+        } else {
+          console.warn("Не удалось получить список автоматизаций:", response.status);
+          // Продолжаем с пустым массивом вместо return
           automations = [];
         }
 
         // Удаляем старую автоматизацию с таким же ID, если есть
+        const beforeCount = automations.length;
         automations = automations.filter((a: any) => a.id !== automationId);
+        if (beforeCount !== automations.length) {
+          console.log(`Удалена старая автоматизация с ID ${automationId}`);
+        }
         
         // Добавляем новую автоматизацию
         automations.push(automation);
+
+        console.log(`Сохранение ${automations.length} автоматизаций в файл`);
 
         // Сохраняем весь список через PUT (обновление всего файла)
         response = await fetch("/api/config/automation/config", {
@@ -969,9 +1039,27 @@ class VacuumScheduleCard extends LitElement {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.warn(`Не удалось сохранить автоматизацию ${automationId} в файл:`, response.status, errorText);
+          console.warn(`PUT не сработал (${response.status}), пробуем POST...`, errorText);
+          
+          // Пробуем через POST как альтернативу
+          const postResponse = await fetch("/api/config/automation/config", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(automations),
+          });
+          
+          if (!postResponse.ok) {
+            const postErrorText = await postResponse.text();
+            console.warn(`POST также не сработал (${postResponse.status}):`, postErrorText);
+            console.warn("Данные для сохранения:", automations);
+          } else {
+            console.log(`Автоматизация ${automationId} успешно сохранена в файл (POST)`);
+          }
         } else {
-          console.log(`Автоматизация ${automationId} успешно сохранена в файл`);
+          console.log(`Автоматизация ${automationId} успешно сохранена в файл (PUT)`);
         }
       }
     } catch (error) {
