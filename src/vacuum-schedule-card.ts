@@ -260,6 +260,13 @@ class VacuumScheduleCard extends LitElement {
       // Получаем все автоматизации из состояния Home Assistant (как в auto-entities)
       const automationsMap = new Map<string, Schedule>();
       
+      // Сначала выведем все автоматизации для отладки
+      const allAutomations = Object.keys(this.hass.states).filter(
+        entityId => entityId.startsWith("automation.")
+      );
+      console.log("Всего автоматизаций в hass.states:", allAutomations.length);
+      console.log("Список всех автоматизаций:", allAutomations);
+      
       // Фильтруем автоматизации по domain и префиксу (как в auto-entities)
       const automationEntities = Object.keys(this.hass.states).filter(
         entityId => {
@@ -273,6 +280,9 @@ class VacuumScheduleCard extends LitElement {
       console.log("Найдено автоматизаций расписаний в hass.states:", automationEntities.length);
       if (automationEntities.length > 0) {
         console.log("Примеры автоматизаций:", automationEntities.slice(0, 3));
+      } else {
+        console.warn("Автоматизации расписаний не найдены! Проверьте формат ID.");
+        console.log("Ищем автоматизации с форматом: automation.vacuum_schedule_*_day_*");
       }
 
       // Обрабатываем каждую найденную автоматизацию
