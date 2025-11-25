@@ -72,8 +72,9 @@ declare global {
 }
 
 // Регистрация карточки для HACS (как в vacuum-card)
-window.customCards = window.customCards || [];
-window.customCards.push({
+// Выполняется сразу при загрузке модуля
+(window as any).customCards = (window as any).customCards || [];
+(window as any).customCards.push({
   preview: true,
   type: "vacuum-schedule-card",
   name: "Vacuum Schedule Card",
