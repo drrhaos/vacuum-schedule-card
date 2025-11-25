@@ -267,38 +267,69 @@ class VacuumScheduleCard extends LitElement {
       console.log("Всего автоматизаций в hass.states:", allAutomations.length);
       console.log("Список всех автоматизаций:", allAutomations);
       
-      // Фильтруем автоматизации по domain и префиксу (как в auto-entities)
-      const automationEntities = Object.keys(this.hass.states).filter(
-        entityId => {
-          const parts = entityId.split(".");
-          return parts[0] === "automation" && 
-                 parts[1]?.startsWith("vacuum_schedule_") && 
-                 parts[1]?.includes("_day_");
+      // Ищем автоматизации по атрибутам (friendly_name или description содержат schedule.id)
+      // entity_id формируется из alias, поэтому ищем по атрибутам
+      const automationEntities: string[] = [];
+      
+      for (const entityId of allAutomations) {
+        const automationState = this.hass.states[entityId];
+        if (!automationState || !automationState.attributes) continue;
+        
+        const friendlyName = automationState.attributes.friendly_name || "";
+        const description = automationState.attributes.description || "";
+        
+        // Ищем автоматизации, у которых в friendly_name или description есть паттерн с schedule.id
+        // Паттерн: "Расписание уборки ... (schedule_...)" или содержит schedule_ в описании
+        if (friendlyName.includes("Расписание уборки") || friendlyName.includes("Vacuum Schedule") ||
+            description.includes("Автоматизация для расписания") || description.includes("schedule_")) {
+          automationEntities.push(entityId);
+          console.log(`Найдена автоматизация расписания: ${entityId}, friendly_name: ${friendlyName}`);
         }
-      );
+      }
 
-      console.log("Найдено автоматизаций расписаний в hass.states:", automationEntities.length);
+      console.log("Найдено автоматизаций расписаний по атрибутам:", automationEntities.length);
       if (automationEntities.length > 0) {
-        console.log("Примеры автоматизаций:", automationEntities.slice(0, 3));
+        console.log("Все найденные автоматизации расписаний:", automationEntities);
       } else {
-        console.warn("Автоматизации расписаний не найдены! Проверьте формат ID.");
-        console.log("Ищем автоматизации с форматом: automation.vacuum_schedule_*_day_*");
+        console.warn("Автоматизации расписаний не найдены по атрибутам!");
       }
 
       // Обрабатываем каждую найденную автоматизацию
       for (const entityId of automationEntities) {
         try {
-          // Парсим ID автоматизации: automation.vacuum_schedule_{scheduleId}_day_{day}
-          const match = entityId.match(/automation\.vacuum_schedule_(.+)_day_(\d+)/);
-          if (!match) {
-            console.log("Не удалось распарсить ID автоматизации:", entityId);
-            continue;
-          }
-
-          const scheduleId = match[1];
-          const day = parseInt(match[2], 10);
           const automationState = this.hass.states[entityId];
           const automationId = entityId.replace("automation.", "");
+          
+          // Извлекаем scheduleId и day из friendly_name или description
+          // Формат: "Расписание уборки 10:00 - Ср (schedule_1764103314127)"
+          const friendlyName = automationState?.attributes?.friendly_name || "";
+          const description = automationState?.attributes?.description || "";
+          
+          // Ищем scheduleId в скобках: (schedule_...)
+          const scheduleIdMatch = friendlyName.match(/\(schedule_(\d+)\)/) || description.match(/schedule_(\d+)/);
+          if (!scheduleIdMatch) {
+            console.log("Не удалось найти scheduleId в автоматизации:", entityId, "friendly_name:", friendlyName);
+            continue;
+          }
+          
+          const scheduleId = `schedule_${scheduleIdMatch[1]}`;
+          
+          // Ищем день недели в friendly_name (например, "Ср", "Wed")
+          const dayNames = this._getDayNames();
+          const dayNamesEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          let day = -1;
+          
+          for (let i = 0; i < dayNames.length; i++) {
+            if (friendlyName.includes(dayNames[i]) || friendlyName.includes(dayNamesEn[i])) {
+              day = i;
+              break;
+            }
+          }
+          
+          if (day === -1) {
+            console.log("Не удалось определить день недели в автоматизации:", entityId, "friendly_name:", friendlyName);
+            continue;
+          }
 
           console.log(`Обработка автоматизации: ${automationId}, scheduleId: ${scheduleId}, day: ${day}`);
 
