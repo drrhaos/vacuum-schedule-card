@@ -257,68 +257,105 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      // Получаем все автоматизации через API
-      // Пробуем через папку (современный способ)
+      // Получаем все автоматизации из состояния Home Assistant (как в auto-entities)
       const automationsMap = new Map<string, Schedule>();
       
-      // Получаем все автоматизации из состояния Home Assistant
+      // Фильтруем автоматизации по domain и префиксу (как в auto-entities)
       const automationEntities = Object.keys(this.hass.states).filter(
-        entityId => entityId.startsWith("automation.vacuum_schedule_") && entityId.includes("_day_")
+        entityId => {
+          const parts = entityId.split(".");
+          return parts[0] === "automation" && 
+                 parts[1]?.startsWith("vacuum_schedule_") && 
+                 parts[1]?.includes("_day_");
+        }
       );
 
-      console.log("Найдено автоматизаций расписаний:", automationEntities.length);
+      console.log("Найдено автоматизаций расписаний в hass.states:", automationEntities.length);
+      if (automationEntities.length > 0) {
+        console.log("Примеры автоматизаций:", automationEntities.slice(0, 3));
+      }
 
+      // Обрабатываем каждую найденную автоматизацию
       for (const entityId of automationEntities) {
         try {
           // Парсим ID автоматизации: automation.vacuum_schedule_{scheduleId}_day_{day}
           const match = entityId.match(/automation\.vacuum_schedule_(.+)_day_(\d+)/);
-          if (!match) continue;
+          if (!match) {
+            console.log("Не удалось распарсить ID автоматизации:", entityId);
+            continue;
+          }
 
           const scheduleId = match[1];
           const day = parseInt(match[2], 10);
           const automationState = this.hass.states[entityId];
-
-          // Получаем конфигурацию автоматизации через API
           const automationId = entityId.replace("automation.", "");
+
+          console.log(`Обработка автоматизации: ${automationId}, scheduleId: ${scheduleId}, day: ${day}`);
+
+          // Получаем конфигурацию автоматизации через WebSocket API (как в auto-entities)
           let automationConfig: any = null;
-
-          try {
-            const response = await fetch(`/api/config/automation/config/${automationId}`, {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-
-            if (response.ok) {
-              automationConfig = await response.json();
+          
+          // Сначала пробуем WebSocket API (предпочтительный способ)
+          if (this.hass.connection && typeof (this.hass.connection as any).sendMessagePromise === "function") {
+            try {
+              const wsResult: any = await (this.hass.connection as any).sendMessagePromise({
+                type: "automation/get",
+                automation_id: automationId,
+              });
+              
+              if (wsResult && wsResult.success && wsResult.result) {
+                automationConfig = wsResult.result;
+                console.log(`Конфигурация получена через WebSocket для ${automationId}`);
+              }
+            } catch (wsError) {
+              console.warn(`WebSocket API не сработал для ${automationId}:`, wsError);
             }
-          } catch (e) {
-            console.warn(`Не удалось получить конфигурацию автоматизации ${automationId}:`, e);
+          }
+          
+          // Если WebSocket не сработал, пробуем REST API
+          if (!automationConfig) {
+            try {
+              const response = await fetch(`/api/config/automation/config/${automationId}`, {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              if (response.ok) {
+                automationConfig = await response.json();
+                console.log(`Конфигурация получена через REST API для ${automationId}`);
+              } else {
+                console.warn(`REST API вернул ${response.status} для ${automationId}`);
+              }
+            } catch (e) {
+              console.warn(`Ошибка получения конфигурации через REST API для ${automationId}:`, e);
+            }
           }
 
-          // Если не удалось получить через API, пробуем из атрибутов состояния
-          if (!automationConfig && automationState && automationState.attributes) {
-            // Пытаемся извлечь данные из атрибутов
-            automationConfig = {
-              trigger: automationState.attributes.trigger || [],
-              condition: automationState.attributes.condition || [],
-              action: automationState.attributes.action || [],
-            };
+          // Если конфигурация не найдена, пропускаем
+          if (!automationConfig) {
+            console.warn(`Конфигурация не найдена для автоматизации ${automationId}`);
+            continue;
           }
 
-          if (!automationConfig) continue;
+          console.log(`Конфигурация автоматизации ${automationId}:`, automationConfig);
 
           // Извлекаем время из trigger
-          const timeTrigger = automationConfig.trigger?.find((t: any) => t.platform === "time");
-          if (!timeTrigger || !timeTrigger.at) continue;
+          const triggers = Array.isArray(automationConfig.trigger) ? automationConfig.trigger : [automationConfig.trigger];
+          const timeTrigger = triggers.find((t: any) => t.platform === "time");
+          if (!timeTrigger || !timeTrigger.at) {
+            console.warn(`Не найден time trigger в автоматизации ${automationId}`);
+            continue;
+          }
 
-          const timeStr = timeTrigger.at; // "HH:MM:SS"
-          const time = timeStr.substring(0, 5); // "HH:MM"
+          const timeStr = timeTrigger.at; // "HH:MM:SS" или "HH:MM"
+          const time = timeStr.length >= 5 ? timeStr.substring(0, 5) : timeStr; // "HH:MM"
 
           // Извлекаем комнаты из action
-          const action = automationConfig.action?.[0];
-          const rooms = action?.data?.segments || [];
+          const actions = Array.isArray(automationConfig.action) ? automationConfig.action : [automationConfig.action];
+          const action = actions.find((a: any) => a.service === "dreame_vacuum.vacuum_clean_segment" || a.service?.includes("vacuum_clean_segment"));
+          const rooms = action?.data?.segments || action?.segments || [];
 
           // Получаем или создаем расписание
           let schedule = automationsMap.get(scheduleId);
@@ -331,11 +368,13 @@ class VacuumScheduleCard extends LitElement {
               rooms: rooms,
             };
             automationsMap.set(scheduleId, schedule);
+            console.log(`Создано новое расписание: ${scheduleId}, время: ${time}, комнаты:`, rooms);
           }
 
           // Добавляем день
           if (!schedule.days.includes(day)) {
             schedule.days.push(day);
+            console.log(`Добавлен день ${day} к расписанию ${scheduleId}`);
           }
 
           // Обновляем комнаты (берем из последней автоматизации)
