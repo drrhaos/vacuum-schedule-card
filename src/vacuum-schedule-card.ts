@@ -243,28 +243,144 @@ class VacuumScheduleCard extends LitElement {
   }
 
   private async _loadSchedules(): Promise<void> {
-    if (!this.hass || !this._schedulesEntityId) return;
+    if (!this.hass) return;
 
     this._loading = true;
     this._error = undefined;
 
     try {
-      const state = this.hass.states[this._schedulesEntityId];
-      if (state && state.state) {
-        try {
-          this._schedules = JSON.parse(state.state) || [];
-        } catch (e) {
-          console.error("Ошибка парсинга расписаний:", e);
-          this._schedules = [];
-        }
-      } else {
+      // Загружаем расписания на основе автоматизаций
+      const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
+      if (!token) {
+        console.warn("Токен авторизации не найден для загрузки автоматизаций");
         this._schedules = [];
+        return;
+      }
+
+      // Получаем все автоматизации через API
+      // Пробуем через папку (современный способ)
+      const automationsMap = new Map<string, Schedule>();
+      
+      // Получаем все автоматизации из состояния Home Assistant
+      const automationEntities = Object.keys(this.hass.states).filter(
+        entityId => entityId.startsWith("automation.vacuum_schedule_") && entityId.includes("_day_")
+      );
+
+      console.log("Найдено автоматизаций расписаний:", automationEntities.length);
+
+      for (const entityId of automationEntities) {
+        try {
+          // Парсим ID автоматизации: automation.vacuum_schedule_{scheduleId}_day_{day}
+          const match = entityId.match(/automation\.vacuum_schedule_(.+)_day_(\d+)/);
+          if (!match) continue;
+
+          const scheduleId = match[1];
+          const day = parseInt(match[2], 10);
+          const automationState = this.hass.states[entityId];
+
+          // Получаем конфигурацию автоматизации через API
+          const automationId = entityId.replace("automation.", "");
+          let automationConfig: any = null;
+
+          try {
+            const response = await fetch(`/api/config/automation/config/${automationId}`, {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+
+            if (response.ok) {
+              automationConfig = await response.json();
+            }
+          } catch (e) {
+            console.warn(`Не удалось получить конфигурацию автоматизации ${automationId}:`, e);
+          }
+
+          // Если не удалось получить через API, пробуем из атрибутов состояния
+          if (!automationConfig && automationState && automationState.attributes) {
+            // Пытаемся извлечь данные из атрибутов
+            automationConfig = {
+              trigger: automationState.attributes.trigger || [],
+              condition: automationState.attributes.condition || [],
+              action: automationState.attributes.action || [],
+            };
+          }
+
+          if (!automationConfig) continue;
+
+          // Извлекаем время из trigger
+          const timeTrigger = automationConfig.trigger?.find((t: any) => t.platform === "time");
+          if (!timeTrigger || !timeTrigger.at) continue;
+
+          const timeStr = timeTrigger.at; // "HH:MM:SS"
+          const time = timeStr.substring(0, 5); // "HH:MM"
+
+          // Извлекаем комнаты из action
+          const action = automationConfig.action?.[0];
+          const rooms = action?.data?.segments || [];
+
+          // Получаем или создаем расписание
+          let schedule = automationsMap.get(scheduleId);
+          if (!schedule) {
+            schedule = {
+              id: scheduleId,
+              enabled: automationState?.state === "on",
+              days: [],
+              time: time,
+              rooms: rooms,
+            };
+            automationsMap.set(scheduleId, schedule);
+          }
+
+          // Добавляем день
+          if (!schedule.days.includes(day)) {
+            schedule.days.push(day);
+          }
+
+          // Обновляем комнаты (берем из последней автоматизации)
+          if (rooms.length > 0) {
+            schedule.rooms = rooms;
+          }
+
+          // Обновляем enabled статус (если хотя бы одна автоматизация включена)
+          if (automationState?.state === "on") {
+            schedule.enabled = true;
+          }
+        } catch (e) {
+          console.warn(`Ошибка обработки автоматизации ${entityId}:`, e);
+        }
+      }
+
+      // Сортируем дни в каждом расписании
+      for (const schedule of automationsMap.values()) {
+        schedule.days.sort((a, b) => a - b);
+      }
+
+      this._schedules = Array.from(automationsMap.values());
+      console.log("Загружено расписаний из автоматизаций:", this._schedules.length, this._schedules);
+
+      // Если расписаний нет, пробуем загрузить из input_text (для обратной совместимости)
+      if (this._schedules.length === 0 && this._schedulesEntityId) {
+        const state = this.hass.states[this._schedulesEntityId];
+        if (state && state.state) {
+          try {
+            const parsed = JSON.parse(state.state) || [];
+            if (parsed.length > 0) {
+              this._schedules = parsed;
+              console.log("Загружено расписаний из input_text (fallback):", this._schedules.length);
+            }
+          } catch (e) {
+            console.error("Ошибка парсинга расписаний из input_text:", e);
+          }
+        }
       }
     } catch (error) {
       this._error = `${this._t("error_loading")} ${error}`;
       console.error(this._error);
     } finally {
       this._loading = false;
+      this.requestUpdate();
     }
   }
 
@@ -996,7 +1112,12 @@ class VacuumScheduleCard extends LitElement {
       // Небольшая задержка для применения изменений
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Перезагружаем расписания для проверки
+      // Обновляем локальное состояние сразу для немедленного отображения
+      this._schedules = schedules;
+      console.log("Расписания обновлены локально:", this._schedules.length, this._schedules);
+      this.requestUpdate();
+      
+      // Перезагружаем расписания из состояния для синхронизации
       await this._loadSchedules();
       
       // Создаем/обновляем автоматизации
