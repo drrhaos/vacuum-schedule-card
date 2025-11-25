@@ -4,8 +4,8 @@
   "description": "Home Assistant Lovelace card for scheduling vacuum cleaning",
   "main": "vacuum-schedule-card.js",
   "scripts": {
-    "build": "webpack --mode production",
-    "watch": "webpack --mode development --watch"
+    "build": "rollup -c",
+    "watch": "rollup -c --watch"
   },
   "keywords": [
     "home-assistant",
@@ -17,15 +17,19 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
     "@types/node": "^20.0.0",
+    "rollup": "^4.53.3",
+    "rollup-plugin-typescript2": "^0.36.0",
     "ts-loader": "^9.5.0",
     "typescript": "^5.0.0",
     "webpack": "^5.88.0",
     "webpack-cli": "^5.1.0"
   },
   "dependencies": {
-    "lit": "^2.8.0",
-    "custom-card-helpers": "^1.9.0"
+    "custom-card-helpers": "^1.9.0",
+    "lit": "^2.8.0"
   }
 }
-
