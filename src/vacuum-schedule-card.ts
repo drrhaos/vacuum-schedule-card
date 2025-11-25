@@ -2,10 +2,24 @@ import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 
+interface VacuumScheduleCardConfig {
+  entity: string;
+  type: string;
+}
+
 @customElement("vacuum-schedule-card")
 class VacuumScheduleCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property() public entity!: string;
+  private _config?: VacuumScheduleCardConfig;
+
+  public setConfig(config: VacuumScheduleCardConfig): void {
+    if (!config.entity) {
+      throw new Error("Entity must be specified");
+    }
+    this._config = config;
+    this.entity = config.entity;
+  }
 
   static get styles() {
     return css`
