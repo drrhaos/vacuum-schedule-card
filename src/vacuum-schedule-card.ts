@@ -72,22 +72,19 @@ declare global {
 }
 
 // Явная регистрация элемента - выполняется сразу при загрузке модуля
-if (typeof customElements !== "undefined") {
-  if (!customElements.get("vacuum-schedule-card")) {
-    customElements.define("vacuum-schedule-card", VacuumScheduleCard);
-  }
+// В ES модулях customElements и window всегда доступны
+if (!customElements.get("vacuum-schedule-card")) {
+  customElements.define("vacuum-schedule-card", VacuumScheduleCard);
 }
 
-// Регистрация карточки для HACS (как в vacuum-card)
-if (typeof window !== "undefined") {
-  (window as any).customCards = (window as any).customCards || [];
-  (window as any).customCards.push({
-    preview: true,
-    type: "vacuum-schedule-card",
-    name: "Vacuum Schedule Card",
-    description: "Карточка для создания расписания уборки пылесоса",
-  });
-}
+// Регистрация карточки для HACS (как в vacuum-card и body-miscale-card)
+window.customCards = window.customCards || [];
+window.customCards.push({
+  preview: true,
+  type: "vacuum-schedule-card",
+  name: "Vacuum Schedule Card",
+  description: "Карточка для создания расписания уборки пылесоса",
+});
 
 // Экспорт для совместимости
 export { VacuumScheduleCard };
