@@ -16,6 +16,87 @@ interface Schedule {
   name?: string; // Опциональное имя расписания
 }
 
+interface Translations {
+  [key: string]: {
+    [key: string]: string;
+  };
+}
+
+const translations: Translations = {
+  ru: {
+    "schedule_title": "Расписание уборки",
+    "schedules_count": "расписаний",
+    "no_schedules": "Нет расписаний. Добавьте первое расписание.",
+    "add_schedule": "+ Добавить расписание",
+    "edit_schedule": "Редактировать расписание",
+    "add_schedule_title": "Добавить расписание",
+    "days_label": "Дни недели",
+    "time_label": "Время",
+    "rooms_label": "Комнаты для уборки",
+    "rooms_available": "доступно",
+    "select_all": "Выбрать все",
+    "enabled": "Включено",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "delete_confirm": "Удалить это расписание?",
+    "loading": "Загрузка...",
+    "error_no_entity": "Ошибка: не указаны hass или entity",
+    "error_entity_not_found": "Ошибка: сущность",
+    "not_found": "не найдена",
+    "error_loading": "Ошибка загрузки расписаний:",
+    "error_saving": "Ошибка сохранения:",
+    "error_updating": "Ошибка обновления:",
+    "error_deleting": "Ошибка удаления:",
+    "error_no_days": "Выберите хотя бы один день",
+    "error_no_time": "Укажите время",
+    "error_no_hass": "Ошибка: hass не доступен",
+    "all_rooms": "Все комнаты",
+    "no_rooms_selected": "Комнаты не выбраны",
+    "rooms_not_found": "Комнаты не найдены. Проверьте подключение пылесоса.",
+    "rooms_hint": "💡 Для получения реальных комнат используйте сервис dreame_vacuum.get_room_mapping через Developer Tools",
+    "every_day": "Каждый день",
+    "no_days": "Нет дней",
+    "day_names": "Вс,Пн,Вт,Ср,Чт,Пт,Сб",
+    "room_names": "Гостиная,Спальня,Кухня,Ванная",
+  },
+  en: {
+    "schedule_title": "Vacuum Schedule",
+    "schedules_count": "schedules",
+    "no_schedules": "No schedules. Add your first schedule.",
+    "add_schedule": "+ Add Schedule",
+    "edit_schedule": "Edit Schedule",
+    "add_schedule_title": "Add Schedule",
+    "days_label": "Days of week",
+    "time_label": "Time",
+    "rooms_label": "Rooms to clean",
+    "rooms_available": "available",
+    "select_all": "Select all",
+    "enabled": "Enabled",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete_confirm": "Delete this schedule?",
+    "loading": "Loading...",
+    "error_no_entity": "Error: hass or entity not specified",
+    "error_entity_not_found": "Error: entity",
+    "not_found": "not found",
+    "error_loading": "Error loading schedules:",
+    "error_saving": "Error saving:",
+    "error_updating": "Error updating:",
+    "error_deleting": "Error deleting:",
+    "error_no_days": "Select at least one day",
+    "error_no_time": "Specify time",
+    "error_no_hass": "Error: hass not available",
+    "all_rooms": "All rooms",
+    "no_rooms_selected": "No rooms selected",
+    "rooms_not_found": "Rooms not found. Check vacuum connection.",
+    "rooms_hint": "💡 To get real rooms use dreame_vacuum.get_room_mapping service via Developer Tools",
+    "every_day": "Every day",
+    "no_days": "No days",
+    "day_names": "Sun,Mon,Tue,Wed,Thu,Fri,Sat",
+    "room_names": "Living Room,Bedroom,Kitchen,Bathroom",
+  },
+};
+
 @customElement("vacuum-schedule-card")
 class VacuumScheduleCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
@@ -122,7 +203,7 @@ class VacuumScheduleCard extends LitElement {
         this._schedules = [];
       }
     } catch (error) {
-      this._error = `Ошибка загрузки расписаний: ${error}`;
+      this._error = `${this._t("error_loading")} ${error}`;
       console.error(this._error);
     } finally {
       this._loading = false;
@@ -337,19 +418,31 @@ class VacuumScheduleCard extends LitElement {
     `;
   }
 
+  private _getLanguage(): string {
+    if (!this.hass) return "en";
+    const lang = this.hass.language || this.hass.locale?.language || "en";
+    return lang.startsWith("ru") ? "ru" : "en";
+  }
+
+  private _t(key: string): string {
+    const lang = this._getLanguage();
+    return translations[lang]?.[key] || translations.en[key] || key;
+  }
+
   private _getDayNames(): string[] {
-    return ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+    const dayNamesStr = this._t("day_names");
+    return dayNamesStr.split(",");
   }
 
   private _formatDays(days: number[]): string {
     const dayNames = this._getDayNames();
-    if (days.length === 0) return "Нет дней";
-    if (days.length === 7) return "Каждый день";
+    if (days.length === 0) return this._t("no_days");
+    if (days.length === 7) return this._t("every_day");
     return days.map(d => dayNames[d]).join(", ");
   }
 
   private _formatRooms(roomIds: number[]): string {
-    if (roomIds.length === 0) return "Все комнаты";
+    if (roomIds.length === 0) return this._t("all_rooms");
     const roomNames = roomIds
       .map(id => {
         const room = this._rooms.find(r => r.id === id);
@@ -362,14 +455,14 @@ class VacuumScheduleCard extends LitElement {
   render() {
     if (!this.hass || !this.entity) {
       return html`<div class="card">
-        <div class="content">Ошибка: не указаны hass или entity</div>
+        <div class="content">${this._t("error_no_entity")}</div>
       </div>`;
     }
 
     const state = this.hass.states[this.entity];
     if (!state) {
       return html`<div class="card">
-        <div class="content">Ошибка: сущность ${this.entity} не найдена</div>
+        <div class="content">${this._t("error_entity_not_found")} ${this.entity} ${this._t("not_found")}</div>
       </div>`;
     }
 
@@ -377,18 +470,18 @@ class VacuumScheduleCard extends LitElement {
       <ha-card>
         <div class="card">
           <div class="header">
-            <span>Расписание уборки</span>
-            <span>${this._schedules.length} расписаний</span>
+            <span>${this._t("schedule_title")}</span>
+            <span>${this._schedules.length} ${this._t("schedules_count")}</span>
           </div>
           
           ${this._error && !this._showAddDialog ? html`<div class="error">${this._error}</div>` : ""}
           
           ${this._loading
-            ? html`<div class="loading">Загрузка...</div>`
+            ? html`<div class="loading">${this._t("loading")}</div>`
             : html`
                 <div class="schedules-list">
                   ${this._schedules.length === 0
-                    ? html`<div class="content">Нет расписаний. Добавьте первое расписание.</div>`
+                    ? html`<div class="content">${this._t("no_schedules")}</div>`
                     : this._schedules.map(
                         (schedule) => html`
                           <div class="schedule-item" @click=${() => this._editSchedule(schedule)}>
@@ -400,7 +493,7 @@ class VacuumScheduleCard extends LitElement {
                                 ${this._formatDays(schedule.days)}
                                 ${schedule.rooms.length > 0
                                   ? ` • ${this._formatRooms(schedule.rooms)}`
-                                  : " • Все комнаты"}
+                                  : ` • ${this._t("all_rooms")}`}
                               </div>
                             </div>
                             <div class="schedule-actions" @click=${(e: MouseEvent) => e.stopPropagation()}>
@@ -423,7 +516,7 @@ class VacuumScheduleCard extends LitElement {
                 </div>
                 
                 <ha-button class="add-button" @click=${this._addSchedule}>
-                  + Добавить расписание
+                  ${this._t("add_schedule")}
                 </ha-button>
               `}
         </div>
@@ -437,13 +530,13 @@ class VacuumScheduleCard extends LitElement {
         }}>
           <div class="dialog-content">
             <div class="dialog-header">
-              ${this._editingSchedule ? "Редактировать расписание" : "Добавить расписание"}
+              ${this._editingSchedule ? this._t("edit_schedule") : this._t("add_schedule_title")}
             </div>
 
             ${this._error ? html`<div class="error">${this._error}</div>` : ""}
 
             <div class="form-group">
-              <label class="form-label">Дни недели</label>
+              <label class="form-label">${this._t("days_label")}</label>
               <div class="days-selector">
                 ${this._getDayNames().map((dayName, index) => html`
                   <button
@@ -457,7 +550,7 @@ class VacuumScheduleCard extends LitElement {
             </div>
 
             <div class="form-group">
-              <label class="form-label">Время</label>
+              <label class="form-label">${this._t("time_label")}</label>
               <input
                 type="time"
                 class="time-input"
@@ -469,7 +562,7 @@ class VacuumScheduleCard extends LitElement {
             </div>
 
             <div class="form-group">
-              <label class="form-label">Комнаты для уборки (${this._rooms.length} доступно)</label>
+              <label class="form-label">${this._t("rooms_label")} (${this._rooms.length} ${this._t("rooms_available")})</label>
               <div class="rooms-selector">
                 ${this._rooms.length > 0 ? html`
                   <div class="select-all-rooms">
@@ -487,7 +580,7 @@ class VacuumScheduleCard extends LitElement {
                           this.requestUpdate();
                         }}
                       />
-                      Выбрать все
+                      ${this._t("select_all")}
                     </label>
                   </div>
                   ${this._rooms.map((room) => html`
@@ -517,7 +610,7 @@ class VacuumScheduleCard extends LitElement {
                       <span>${room.name} (ID: ${room.id})</span>
                     </div>
                   `)}
-                ` : html`<div class="content">Комнаты не найдены. Проверьте подключение пылесоса.</div>`}
+                ` : html`<div class="content">${this._t("rooms_not_found")}</div>`}
               </div>
             </div>
 
@@ -530,16 +623,16 @@ class VacuumScheduleCard extends LitElement {
                     this._newSchedule.enabled = (e.target as HTMLInputElement).checked;
                   }}
                 />
-                Включено
+                ${this._t("enabled")}
               </label>
             </div>
 
             <div class="dialog-actions">
               <ha-button class="button-secondary" @click=${this._closeDialog}>
-                Отмена
+                ${this._t("cancel")}
               </ha-button>
               <ha-button @click=${this._saveSchedule}>
-                Сохранить
+                ${this._t("save")}
               </ha-button>
             </div>
           </div>
@@ -621,7 +714,7 @@ class VacuumScheduleCard extends LitElement {
       
       this._schedules = schedules;
     } catch (error) {
-      this._error = `Ошибка обновления: ${error}`;
+      this._error = `${this._t("error_updating")} ${error}`;
       console.error("Ошибка обновления расписания:", error);
     }
   }
@@ -629,7 +722,7 @@ class VacuumScheduleCard extends LitElement {
   private async _deleteSchedule(schedule: Schedule): Promise<void> {
     if (!this.hass || !this._schedulesEntityId) return;
 
-    if (!confirm("Удалить это расписание?")) {
+    if (!confirm(this._t("delete_confirm"))) {
       return;
     }
 
@@ -643,24 +736,24 @@ class VacuumScheduleCard extends LitElement {
       
       this._schedules = schedules;
     } catch (error) {
-      this._error = `Ошибка удаления: ${error}`;
+      this._error = `${this._t("error_deleting")} ${error}`;
       console.error("Ошибка удаления расписания:", error);
     }
   }
 
   private async _saveSchedule(): Promise<void> {
     if (!this._newSchedule.days || this._newSchedule.days.length === 0) {
-      this._error = "Выберите хотя бы один день";
+      this._error = this._t("error_no_days");
       return;
     }
 
     if (!this._newSchedule.time) {
-      this._error = "Укажите время";
+      this._error = this._t("error_no_time");
       return;
     }
 
     if (!this.hass || !this._schedulesEntityId) {
-      this._error = "Ошибка: hass не доступен";
+      this._error = this._t("error_no_hass");
       return;
     }
 
@@ -693,7 +786,7 @@ class VacuumScheduleCard extends LitElement {
       this._closeDialog();
       this._error = undefined;
     } catch (error) {
-      this._error = `Ошибка сохранения: ${error}`;
+      this._error = `${this._t("error_saving")} ${error}`;
       console.error("Ошибка сохранения расписания:", error);
     }
   }

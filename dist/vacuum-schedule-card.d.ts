@@ -22,6 +22,8 @@ declare class VacuumScheduleCard extends LitElement {
     private _loadSchedules;
     getCardSize(): number;
     static get styles(): import("lit").CSSResult;
+    private _getLanguage;
+    private _t;
     private _getDayNames;
     private _formatDays;
     private _formatRooms;
