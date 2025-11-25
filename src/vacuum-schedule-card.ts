@@ -857,79 +857,32 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      // Используем файл - все автоматизации в одном файле
-      // Для файла нужно получить все автоматизации, добавить новую и сохранить весь список
-      let response = await fetch("/api/config/automation/config", {
+      // Создаем автоматизацию через папку (каждая автоматизация в отдельном файле)
+      // Сначала проверяем, существует ли автоматизация
+      let response = await fetch(`/api/config/automation/config/${automationId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      let automations: any[] = [];
-
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          automations = data;
-          console.log(`Получено ${automations.length} существующих автоматизаций из файла`);
-        } else {
-          console.log("Ответ не является массивом, инициализируем пустой массив");
-          automations = [];
-        }
-      } else if (response.status === 404) {
-        console.log("Файл автоматизаций не найден (404), создаем новый");
-        automations = [];
-      } else {
-        console.warn("Не удалось получить список автоматизаций:", response.status);
-        automations = [];
-      }
-
-      // Удаляем старую автоматизацию с таким же ID, если есть
-      const beforeCount = automations.length;
-      automations = automations.filter((a: any) => a.id !== automationId);
-      if (beforeCount !== automations.length) {
-        console.log(`Удалена старая автоматизация с ID ${automationId}`);
-      }
+      const method = response.ok ? "PUT" : "POST"; // Если существует - обновляем, иначе создаем
       
-      // Добавляем новую автоматизацию
-      automations.push(automation);
-
-      console.log(`Сохранение ${automations.length} автоматизаций в файл`);
-
-      // Сохраняем весь список через PUT (обновление всего файла)
-      response = await fetch("/api/config/automation/config", {
-        method: "PUT",
+      response = await fetch(`/api/config/automation/config/${automationId}`, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(automations),
+        body: JSON.stringify(automation),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`PUT не сработал (${response.status}), пробуем POST...`, errorText);
-        
-        // Пробуем через POST как альтернативу
-        const postResponse = await fetch("/api/config/automation/config", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(automations),
-        });
-        
-        if (!postResponse.ok) {
-          const postErrorText = await postResponse.text();
-          console.warn(`POST также не сработал (${postResponse.status}):`, postErrorText);
-          console.warn("Данные для сохранения:", automations);
-        } else {
-          console.log(`Автоматизация ${automationId} успешно сохранена в файл (POST)`);
-        }
+        console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
+        console.warn("Данные автоматизации:", automation);
       } else {
-        console.log(`Автоматизация ${automationId} успешно сохранена в файл (PUT)`);
+        console.log(`Автоматизация ${automationId} успешно ${method === "POST" ? "создана" : "обновлена"}`);
       }
     } catch (error) {
       console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
@@ -948,59 +901,18 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      // Удаляем из файла - получаем все автоматизации, удаляем нужную, сохраняем
-      let response = await fetch("/api/config/automation/config", {
-        method: "GET",
+      // Удаляем автоматизацию из папки
+      const response = await fetch(`/api/config/automation/config/${automationId}`, {
+        method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        console.warn("Не удалось получить список автоматизаций для удаления:", response.status);
-        return;
-      }
-
-      let automations = await response.json();
-      if (!Array.isArray(automations)) {
-        automations = [];
-      }
-
-      // Удаляем автоматизацию
-      automations = automations.filter((a: any) => a.id !== automationId);
-
-      // Сохраняем обновленный список через PUT (обновление всего файла)
-      response = await fetch("/api/config/automation/config", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(automations),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`PUT не сработал (${response.status}), пробуем POST...`, errorText);
-        
-        // Пробуем через POST как альтернативу
-        const postResponse = await fetch("/api/config/automation/config", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(automations),
-        });
-        
-        if (!postResponse.ok) {
-          const postErrorText = await postResponse.text();
-          console.warn(`POST также не сработал (${postResponse.status}):`, postErrorText);
-        } else {
-          console.log(`Автоматизация ${automationId} успешно удалена из файла (POST)`);
-        }
+        console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
       } else {
-        console.log(`Автоматизация ${automationId} успешно удалена из файла (PUT)`);
+        console.log(`Автоматизация ${automationId} успешно удалена`);
       }
     } catch (error) {
       console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
