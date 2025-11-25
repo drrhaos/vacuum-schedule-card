@@ -143,6 +143,64 @@ class VacuumScheduleCard extends LitElement {
     if (!this.hass || !this.entity) return;
 
     try {
+      // Извлекаем базовое имя entity (например, из vacuum.xiaomi_m30s получаем xiaomi_m30s)
+      const entityName = this.entity.replace("vacuum.", "");
+      
+      // Ищем select-сущности для комнат (например, select.pylesos_room_1_name)
+      // Паттерн: select.{entity_prefix}_room_{id}_name
+      const roomEntities: Array<{ id: number; name: string }> = [];
+      
+      // Пробуем разные префиксы
+      const possiblePrefixes = [
+        entityName,
+        entityName.replace(/_/g, ""),
+        "pylesos", // как в примере
+        "vacuum",
+      ];
+      
+      for (const prefix of possiblePrefixes) {
+        // Ищем сущности вида select.{prefix}_room_{id}_name
+        for (let i = 1; i <= 50; i++) {
+          const roomNameEntity = `select.${prefix}_room_${i}_name`;
+          const roomIdEntity = `select.${prefix}_room_${i}_id` || `number.${prefix}_room_${i}_id`;
+          
+          const nameState = this.hass.states[roomNameEntity];
+          const idState = this.hass.states[roomIdEntity];
+          
+          if (nameState && nameState.state) {
+            // Пытаемся получить ID из отдельной сущности или из имени сущности
+            let roomId: number;
+            if (idState && idState.state) {
+              roomId = parseInt(idState.state, 10);
+            } else {
+              // Извлекаем ID из имени сущности (room_1 -> 1)
+              const match = roomNameEntity.match(/room_(\d+)/);
+              roomId = match ? parseInt(match[1], 10) : i;
+            }
+            
+            if (!isNaN(roomId)) {
+              roomEntities.push({
+                id: roomId,
+                name: nameState.state,
+              });
+            }
+          }
+        }
+        
+        // Если нашли комнаты, прекращаем поиск
+        if (roomEntities.length > 0) {
+          break;
+        }
+      }
+      
+      // Если нашли комнаты через select-сущности
+      if (roomEntities.length > 0) {
+        this._rooms = roomEntities.sort((a, b) => a.id - b.id);
+        console.log("Загружено комнат из select-сущностей:", this._rooms.length, this._rooms);
+        this.requestUpdate();
+        return;
+      }
+      
       // Пытаемся получить комнаты из атрибутов пылесоса
       const state = this.hass.states[this.entity];
       if (state && state.attributes) {
@@ -154,33 +212,33 @@ class VacuumScheduleCard extends LitElement {
             id: typeof room === 'number' ? room : room.id || room.segment_id,
             name: typeof room === 'object' && room.name ? room.name : `Комната ${typeof room === 'number' ? room : room.id || room.segment_id}`,
           }));
+          console.log("Загружено комнат из атрибутов:", this._rooms.length, this._rooms);
+          this.requestUpdate();
           return;
         }
       }
 
-      // Если не нашли в атрибутах, используем стандартные комнаты
-      // Примечание: для получения реальных комнат используйте сервис dreame_vacuum.get_room_mapping
-      // через Developer Tools в Home Assistant
-      if (this._rooms.length === 0) {
-        this._rooms = [
-          { id: 16, name: "Гостиная" },
-          { id: 17, name: "Спальня" },
-          { id: 18, name: "Кухня" },
-          { id: 19, name: "Ванная" },
-        ];
-      }
+      // Если не нашли, используем стандартные комнаты
+      const roomNames = this._t("room_names").split(",");
+      this._rooms = [
+        { id: 16, name: roomNames[0] || "Living Room" },
+        { id: 17, name: roomNames[1] || "Bedroom" },
+        { id: 18, name: roomNames[2] || "Kitchen" },
+        { id: 19, name: roomNames[3] || "Bathroom" },
+      ];
+      console.log("Используются стандартные комнаты:", this._rooms.length, this._rooms);
     } catch (error) {
       console.error("Ошибка загрузки комнат:", error);
       // Используем стандартные комнаты
+      const roomNames = this._t("room_names").split(",");
       this._rooms = [
-        { id: 16, name: "Гостиная" },
-        { id: 17, name: "Спальня" },
-        { id: 18, name: "Кухня" },
-        { id: 19, name: "Ванная" },
+        { id: 16, name: roomNames[0] || "Living Room" },
+        { id: 17, name: roomNames[1] || "Bedroom" },
+        { id: 18, name: roomNames[2] || "Kitchen" },
+        { id: 19, name: roomNames[3] || "Bathroom" },
       ];
     }
     
-    console.log("Загружено комнат:", this._rooms.length, this._rooms);
     this.requestUpdate();
   }
 
