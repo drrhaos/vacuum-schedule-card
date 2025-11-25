@@ -12,7 +12,10 @@ export default {
   },
   context: 'window',
   plugins: [
-    nodeResolve(),
+    nodeResolve({
+      browser: true,
+      preferBuiltins: false,
+    }),
     commonjs(),
     typescript({
       tsconfig: 'tsconfig.json',
@@ -24,6 +27,5 @@ export default {
       },
     }),
   ],
-  external: ['lit', 'custom-card-helpers'],
 };
 

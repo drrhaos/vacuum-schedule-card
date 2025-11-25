@@ -32,3 +32,4 @@ window.customCards.push({
 
 console.log("✅ Модуль загружен, элемент зарегистрирован:", customElements.get("vacuum-schedule-card"));
 
+
