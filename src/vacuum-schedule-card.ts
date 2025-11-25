@@ -852,19 +852,27 @@ class VacuumScheduleCard extends LitElement {
 
     try {
       // Используем REST API для создания автоматизации
+      const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
+      if (!token) {
+        console.warn("Токен авторизации не найден для создания автоматизации");
+        return;
+      }
+
       const response = await fetch(`/api/config/automation/config/${automationId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.hass.auth.data.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(automation),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`Не удалось создать автоматизацию ${automationId}:`, errorText);
-        // Не показываем ошибку пользователю, так как автоматизации не критичны
+        console.warn(`Не удалось создать автоматизацию ${automationId}:`, response.status, errorText);
+        console.warn("Данные автоматизации:", automation);
+      } else {
+        console.log(`Автоматизация ${automationId} успешно создана`);
       }
     } catch (error) {
       console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
@@ -877,15 +885,23 @@ class VacuumScheduleCard extends LitElement {
     const automationId = `vacuum_schedule_${scheduleId}_day_${day}`;
 
     try {
+      const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
+      if (!token) {
+        console.warn("Токен авторизации не найден для удаления автоматизации");
+        return;
+      }
+
       const response = await fetch(`/api/config/automation/config/${automationId}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${this.hass.auth.data.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        console.warn(`Не удалось удалить автоматизацию ${automationId}`);
+        console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
+      } else {
+        console.log(`Автоматизация ${automationId} успешно удалена`);
       }
     } catch (error) {
       console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
@@ -954,21 +970,43 @@ class VacuumScheduleCard extends LitElement {
     }
 
     try {
+      console.log("Сохранение расписаний:", {
+        entity_id: this._schedulesEntityId,
+        schedules_count: schedules.length,
+        schedules: schedules,
+      });
+      
+      // Сохраняем расписания
       await this.hass.callService("input_text", "set_value", {
         entity_id: this._schedulesEntityId,
         value: JSON.stringify(schedules),
       });
       
-      this._schedules = schedules;
+      // Небольшая задержка для применения изменений
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Перезагружаем расписания для проверки
+      await this._loadSchedules();
       
       // Создаем/обновляем автоматизации
-      await this._updateAutomationsForSchedule(schedule, oldSchedule);
+      try {
+        await this._updateAutomationsForSchedule(schedule, oldSchedule);
+      } catch (autoError) {
+        console.warn("Ошибка создания автоматизаций (не критично):", autoError);
+        // Не блокируем сохранение расписания из-за ошибки автоматизаций
+      }
       
       this._closeDialog();
       this._error = undefined;
+      this.requestUpdate();
     } catch (error) {
       this._error = `${this._t("error_saving")} ${error}`;
       console.error("Ошибка сохранения расписания:", error);
+      console.error("Детали ошибки:", {
+        entity_id: this._schedulesEntityId,
+        schedules_count: schedules.length,
+        error: error,
+      });
     }
   }
 }
