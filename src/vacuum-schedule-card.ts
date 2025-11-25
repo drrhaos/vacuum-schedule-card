@@ -141,6 +141,7 @@ const translations: Record<string, Translations> = {
   },
 };
 
+@customElement("vacuum-schedule-card")
 class VacuumScheduleCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
 
@@ -993,12 +994,14 @@ declare global {
   }
 }
 
-// Register the custom element immediately when module loads
-// This executes synchronously when the module is imported
-if (typeof customElements !== "undefined") {
-  customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+// Ensure registration happens when module is loaded
+// The @customElement decorator should handle registration, but we ensure it
+if (typeof window !== "undefined" && typeof customElements !== "undefined") {
+  if (!customElements.get("vacuum-schedule-card")) {
+    customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+  }
 }
 
-// Export for compatibility
+// Export the class
 export { VacuumScheduleCard };
 
