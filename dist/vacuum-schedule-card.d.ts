@@ -9,6 +9,7 @@ declare class VacuumScheduleCard extends LitElement {
     entity: string;
     private _config?;
     setConfig(config: VacuumScheduleCardConfig): void;
+    getCardSize(): number;
     static get styles(): import("lit").CSSResult;
     render(): import("lit-html").TemplateResult<1>;
 }

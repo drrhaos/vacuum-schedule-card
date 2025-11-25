@@ -21,6 +21,10 @@ class VacuumScheduleCard extends LitElement {
     this.entity = config.entity;
   }
 
+  public getCardSize(): number {
+    return 3;
+  }
+
   static get styles() {
     return css`
       :host {
