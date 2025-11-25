@@ -418,10 +418,18 @@ class VacuumScheduleCard extends LitElement {
       // Сортируем дни в каждом расписании
       for (const schedule of automationsMap.values()) {
         schedule.days.sort((a, b) => a - b);
+        console.log("Обработанное расписание:", {
+          id: schedule.id,
+          enabled: schedule.enabled,
+          days: schedule.days,
+          time: schedule.time,
+          rooms: schedule.rooms,
+        });
       }
 
       this._schedules = Array.from(automationsMap.values());
-      console.log("Загружено расписаний из автоматизаций:", this._schedules.length, this._schedules);
+      console.log("Загружено расписаний из автоматизаций:", this._schedules.length);
+      console.log("Детали всех расписаний:", JSON.stringify(this._schedules, null, 2));
 
       // Если расписаний нет, пробуем загрузить из input_text (для обратной совместимости)
       if (this._schedules.length === 0 && this._schedulesEntityId) {
@@ -690,6 +698,8 @@ class VacuumScheduleCard extends LitElement {
   }
 
   render() {
+    console.log("render() вызван, количество расписаний:", this._schedules.length, "loading:", this._loading);
+    
     if (!this.hass || !this.entity) {
       return html`<div class="card">
         <div class="content">${this._t("error_no_entity")}</div>
