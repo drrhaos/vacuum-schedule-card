@@ -10,8 +10,11 @@ declare class VacuumScheduleCard extends LitElement {
     private _schedules;
     private _loading;
     private _error?;
+    private _showAddDialog;
+    private _editingSchedule?;
     private _config?;
     private _schedulesEntityId?;
+    private _newSchedule;
     setConfig(config: VacuumScheduleCardConfig): void;
     connectedCallback(): void;
     private _loadSchedules;
@@ -21,6 +24,13 @@ declare class VacuumScheduleCard extends LitElement {
     private _formatDays;
     render(): import("lit-html").TemplateResult<1>;
     private _addSchedule;
+    private _toggleDay;
+    private _isDaySelected;
+    private _closeDialog;
+    private _editSchedule;
+    private _toggleSchedule;
+    private _deleteSchedule;
+    private _saveSchedule;
 }
 declare global {
     interface HTMLElementTagNameMap {
