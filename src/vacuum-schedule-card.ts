@@ -25,6 +25,7 @@ class VacuumScheduleCard extends LitElement {
   @state() private _error?: string;
   @state() private _showAddDialog = false;
   @state() private _editingSchedule?: Schedule;
+  @state() private _rooms: Array<{ id: number; name: string }> = [];
   private _config?: VacuumScheduleCardConfig;
   private _schedulesEntityId?: string;
   
@@ -52,6 +53,49 @@ class VacuumScheduleCard extends LitElement {
     super.connectedCallback();
     if (this.hass && this._schedulesEntityId) {
       this._loadSchedules();
+      this._loadRooms();
+    }
+  }
+
+  private async _loadRooms(): Promise<void> {
+    if (!this.hass || !this.entity) return;
+
+    try {
+      // Пытаемся получить комнаты из атрибутов пылесоса
+      const state = this.hass.states[this.entity];
+      if (state && state.attributes) {
+        // Проверяем различные возможные атрибуты
+        const segments = state.attributes.segments || state.attributes.room_list || [];
+        
+        if (Array.isArray(segments) && segments.length > 0) {
+          this._rooms = segments.map((room: any) => ({
+            id: typeof room === 'number' ? room : room.id || room.segment_id,
+            name: typeof room === 'object' && room.name ? room.name : `Комната ${typeof room === 'number' ? room : room.id || room.segment_id}`,
+          }));
+          return;
+        }
+      }
+
+      // Если не нашли в атрибутах, используем стандартные комнаты
+      // Примечание: для получения реальных комнат используйте сервис dreame_vacuum.get_room_mapping
+      // через Developer Tools в Home Assistant
+      if (this._rooms.length === 0) {
+        this._rooms = [
+          { id: 16, name: "Гостиная" },
+          { id: 17, name: "Спальня" },
+          { id: 18, name: "Кухня" },
+          { id: 19, name: "Ванная" },
+        ];
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки комнат:", error);
+      // Используем стандартные комнаты
+      this._rooms = [
+        { id: 16, name: "Гостиная" },
+        { id: 17, name: "Спальня" },
+        { id: 18, name: "Кухня" },
+        { id: 19, name: "Ванная" },
+      ];
     }
   }
 
@@ -248,6 +292,35 @@ class VacuumScheduleCard extends LitElement {
         border-radius: 4px;
         font-size: 16px;
       }
+      .rooms-selector {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 8px;
+        border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+        border-radius: 4px;
+      }
+      .room-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+      .room-item:hover {
+        background: var(--divider-color, rgba(0,0,0,0.05));
+      }
+      .room-checkbox {
+        margin-right: 8px;
+      }
+      .select-all-rooms {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+      }
       .dialog-actions {
         display: flex;
         gap: 8px;
@@ -269,6 +342,17 @@ class VacuumScheduleCard extends LitElement {
     if (days.length === 0) return "Нет дней";
     if (days.length === 7) return "Каждый день";
     return days.map(d => dayNames[d]).join(", ");
+  }
+
+  private _formatRooms(roomIds: number[]): string {
+    if (roomIds.length === 0) return "Все комнаты";
+    const roomNames = roomIds
+      .map(id => {
+        const room = this._rooms.find(r => r.id === id);
+        return room ? room.name : `ID:${id}`;
+      })
+      .join(", ");
+    return roomNames || "Комнаты не выбраны";
   }
 
   render() {
@@ -311,8 +395,8 @@ class VacuumScheduleCard extends LitElement {
                               <div class="schedule-days">
                                 ${this._formatDays(schedule.days)}
                                 ${schedule.rooms.length > 0
-                                  ? ` • ${schedule.rooms.length} комнат`
-                                  : ""}
+                                  ? ` • ${this._formatRooms(schedule.rooms)}`
+                                  : " • Все комнаты"}
                               </div>
                             </div>
                             <div class="schedule-actions" @click=${(e: MouseEvent) => e.stopPropagation()}>
@@ -378,6 +462,59 @@ class VacuumScheduleCard extends LitElement {
                   this._newSchedule.time = (e.target as HTMLInputElement).value;
                 }}
               />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Комнаты для уборки</label>
+              <div class="rooms-selector">
+                ${this._rooms.length > 0 ? html`
+                  <div class="select-all-rooms">
+                    <label>
+                      <input
+                        type="checkbox"
+                        class="room-checkbox"
+                        .checked=${this._newSchedule.rooms?.length === this._rooms.length}
+                        @change=${(e: Event) => {
+                          if ((e.target as HTMLInputElement).checked) {
+                            this._newSchedule.rooms = this._rooms.map(r => r.id);
+                          } else {
+                            this._newSchedule.rooms = [];
+                          }
+                          this.requestUpdate();
+                        }}
+                      />
+                      Выбрать все
+                    </label>
+                  </div>
+                  ${this._rooms.map((room) => html`
+                    <div class="room-item">
+                      <input
+                        type="checkbox"
+                        class="room-checkbox"
+                        .checked=${this._newSchedule.rooms?.includes(room.id) || false}
+                        @change=${(e: Event) => {
+                          if (!this._newSchedule.rooms) {
+                            this._newSchedule.rooms = [];
+                          }
+                          const checked = (e.target as HTMLInputElement).checked;
+                          if (checked) {
+                            if (!this._newSchedule.rooms.includes(room.id)) {
+                              this._newSchedule.rooms.push(room.id);
+                            }
+                          } else {
+                            const index = this._newSchedule.rooms.indexOf(room.id);
+                            if (index > -1) {
+                              this._newSchedule.rooms.splice(index, 1);
+                            }
+                          }
+                          this.requestUpdate();
+                        }}
+                      />
+                      <span>${room.name} (ID: ${room.id})</span>
+                    </div>
+                  `)}
+                ` : html`<div class="content">Комнаты не найдены. Проверьте подключение пылесоса.</div>`}
+              </div>
             </div>
 
             <div class="form-group">
