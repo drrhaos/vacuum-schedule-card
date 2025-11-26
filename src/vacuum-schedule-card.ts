@@ -108,7 +108,6 @@ class VacuumScheduleCard extends LitElement {
   @state() private _editingSchedule?: Schedule;
   @state() private _rooms: Array<{ id: number; name: string }> = [];
   private _config?: VacuumScheduleCardConfig;
-  private _schedulesEntityId?: string;
   
   // Форма нового расписания
   @state() private _newSchedule: Partial<Schedule> = {
@@ -124,16 +123,13 @@ class VacuumScheduleCard extends LitElement {
     }
     this._config = config;
     this.entity = config.entity;
-    // Формируем entity_id для input_text helper
-    const entityName = config.entity.replace("vacuum.", "");
-    this._schedulesEntityId = `input_text.vacuum_schedules_${entityName}`;
     this._loadSchedules();
     this._loadRooms();
   }
 
   connectedCallback(): void {
     super.connectedCallback();
-    if (this.hass && this._schedulesEntityId) {
+    if (this.hass) {
       this._loadSchedules();
       this._loadRooms();
     }
@@ -196,15 +192,13 @@ class VacuumScheduleCard extends LitElement {
       // Если нашли комнаты через select-сущности
       if (roomEntities.length > 0) {
         this._rooms = roomEntities.sort((a, b) => a.id - b.id);
-        console.log("Загружено комнат из select-сущностей:", this._rooms.length, this._rooms);
         this.requestUpdate();
         return;
       }
       
       // Пытаемся получить комнаты из атрибутов пылесоса
       const state = this.hass.states[this.entity];
-      if (state && state.attributes) {
-        // Проверяем различные возможные атрибуты
+      if (state?.attributes) {
         const segments = state.attributes.segments || state.attributes.room_list || [];
         
         if (Array.isArray(segments) && segments.length > 0) {
@@ -212,7 +206,6 @@ class VacuumScheduleCard extends LitElement {
             id: typeof room === 'number' ? room : room.id || room.segment_id,
             name: typeof room === 'object' && room.name ? room.name : `Комната ${typeof room === 'number' ? room : room.id || room.segment_id}`,
           }));
-          console.log("Загружено комнат из атрибутов:", this._rooms.length, this._rooms);
           this.requestUpdate();
           return;
         }
@@ -226,7 +219,6 @@ class VacuumScheduleCard extends LitElement {
         { id: 18, name: roomNames[2] || "Kitchen" },
         { id: 19, name: roomNames[3] || "Bathroom" },
       ];
-      console.log("Используются стандартные комнаты:", this._rooms.length, this._rooms);
     } catch (error) {
       console.error("Ошибка загрузки комнат:", error);
       // Используем стандартные комнаты
@@ -249,198 +241,94 @@ class VacuumScheduleCard extends LitElement {
     this._error = undefined;
 
     try {
-      // Загружаем расписания на основе автоматизаций
-      const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
-      if (!token) {
-        console.warn("Токен авторизации не найден для загрузки автоматизаций");
-        this._schedules = [];
-        return;
-      }
-
-      // Получаем все автоматизации из состояния Home Assistant (как в auto-entities)
       const automationsMap = new Map<string, Schedule>();
       
-      // Сначала выведем все автоматизации для отладки
-      const allAutomations = Object.keys(this.hass.states).filter(
-        entityId => entityId.startsWith("automation.")
-      );
-      console.log("Всего автоматизаций в hass.states:", allAutomations.length);
-      console.log("Список всех автоматизаций:", allAutomations);
-      
-      // Ищем автоматизации по entity_id (формируется из alias)
-      // Формат: automation.raspisanie_uborki_10_00_sr_schedule_1764103314127
-      // Но лучше получить реальный id из конфигурации автоматизации
-      const automationEntities = allAutomations.filter(
-        entityId => {
-          // Ищем автоматизации, у которых в entity_id есть "raspisanie_uborki" и "schedule_"
-          const parts = entityId.split(".");
-          return parts.length === 2 && 
-                 parts[0] === "automation" &&
-                 parts[1]?.includes("raspisanie_uborki") &&
-                 parts[1]?.includes("schedule_");
-        }
-      );
-
-      console.log("Найдено автоматизаций расписаний по entity_id:", automationEntities.length);
-      if (automationEntities.length > 0) {
-        console.log("Все найденные автоматизации расписаний:", automationEntities);
-      } else {
-        console.warn("Автоматизации расписаний не найдены!");
-      }
-
-      // Получаем список всех автоматизаций через WebSocket API для получения реальных id
-      let allAutomationsConfig: any[] = [];
-      
+      // Получаем список всех автоматизаций через WebSocket API
       if (this.hass.connection && typeof (this.hass.connection as any).sendMessagePromise === "function") {
         try {
-          // Получаем список всех автоматизаций
           const wsListResult: any = await (this.hass.connection as any).sendMessagePromise({
             type: "automation/list",
           });
           
-          if (wsListResult && wsListResult.success && Array.isArray(wsListResult.result)) {
-            allAutomationsConfig = wsListResult.result;
-            console.log("Получено автоматизаций через WebSocket list:", allAutomationsConfig.length);
-          }
-        } catch (wsListError) {
-          console.warn("Не удалось получить список автоматизаций через WebSocket:", wsListError);
-        }
-      }
-      
-      // Обрабатываем автоматизации из списка напрямую (не по entity_id)
-      // Ищем все автоматизации с id вида vacuum_schedule_*_day_*
-      const scheduleAutomations = allAutomationsConfig.filter((a: any) => {
-        const id = a.id || "";
-        return id.startsWith("vacuum_schedule_") && id.includes("_day_");
-      });
-      
-      console.log("Найдено автоматизаций расписаний в списке:", scheduleAutomations.length);
-      console.log("ID автоматизаций расписаний:", scheduleAutomations.map((a: any) => a.id));
-      
-      // Обрабатываем каждую автоматизацию из списка
-      for (const automationConfig of scheduleAutomations) {
-        try {
-          // Извлекаем scheduleId и day из реального id автоматизации
-          // Формат id: vacuum_schedule_schedule_1764103314127_day_3
-          const configId = automationConfig.id;
-          if (!configId) {
-            console.warn(`ID не найден в конфигурации автоматизации`);
-            continue;
-          }
-          
-          // Парсим id: vacuum_schedule_{scheduleId}_day_{day}
-          const idMatch = configId.match(/^vacuum_schedule_(.+)_day_(\d+)$/);
-          if (!idMatch) {
-            console.warn(`Не удалось распарсить ID автоматизации: ${configId}`);
-            continue;
-          }
-          
-          const scheduleId = idMatch[1];
-          const day = parseInt(idMatch[2], 10);
-          
-          console.log(`Обработка автоматизации: id=${configId}, scheduleId=${scheduleId}, day=${day}`);
-
-          // Находим entity_id для этой автоматизации (может быть разным из-за alias)
-          // Пробуем найти по id или по описанию
-          let entityId = `automation.${configId}`;
-          let automationState = this.hass.states[entityId];
-          
-          // Если не нашли по id, ищем по описанию в hass.states
-          if (!automationState) {
-            for (const eId of automationEntities) {
-              const state = this.hass.states[eId];
-              if (state && state.attributes) {
-                const description = state.attributes.description || "";
-                if (description.includes(`расписания уборки`) && description.includes(scheduleId)) {
-                  entityId = eId;
-                  automationState = state;
-                  break;
+          if (wsListResult?.success && Array.isArray(wsListResult.result)) {
+            // Логируем все автоматизации
+            console.log("Все автоматизации из WebSocket API:", wsListResult.result.length);
+            console.log("Детали всех автоматизаций:", JSON.stringify(wsListResult.result, null, 2));
+            
+            // Фильтруем автоматизации с id вида vacuum_schedule_*_day_*
+            const scheduleAutomations = wsListResult.result.filter((a: any) => {
+              const id = a.id || "";
+              return id.startsWith("vacuum_schedule_") && id.includes("_day_");
+            });
+            
+            // Обрабатываем каждую автоматизацию
+            for (const automationConfig of scheduleAutomations) {
+              try {
+                const configId = automationConfig.id;
+                if (!configId) continue;
+                
+                // Парсим id: vacuum_schedule_{scheduleId}_day_{day}
+                const idMatch = configId.match(/^vacuum_schedule_(.+)_day_(\d+)$/);
+                if (!idMatch) continue;
+                
+                const scheduleId = idMatch[1];
+                const day = parseInt(idMatch[2], 10);
+                
+                // Находим entity_id для получения статуса
+                const entityId = `automation.${configId}`;
+                const automationState = this.hass.states[entityId];
+                
+                // Извлекаем время из trigger
+                const triggers = Array.isArray(automationConfig.trigger) ? automationConfig.trigger : [automationConfig.trigger];
+                const timeTrigger = triggers.find((t: any) => t.platform === "time");
+                if (!timeTrigger?.at) continue;
+                
+                const time = timeTrigger.at.substring(0, 5); // "HH:MM"
+                
+                // Извлекаем комнаты из action
+                const actions = Array.isArray(automationConfig.action) ? automationConfig.action : [automationConfig.action];
+                const action = actions.find((a: any) => a.service?.includes("vacuum_clean_segment"));
+                const rooms = action?.data?.segments || [];
+                
+                // Получаем или создаем расписание
+                let schedule = automationsMap.get(scheduleId);
+                if (!schedule) {
+                  schedule = {
+                    id: scheduleId,
+                    enabled: automationState?.state === "on",
+                    days: [],
+                    time: time,
+                    rooms: rooms,
+                  };
+                  automationsMap.set(scheduleId, schedule);
                 }
+                
+                // Добавляем день и обновляем данные
+                if (!schedule.days.includes(day)) {
+                  schedule.days.push(day);
+                }
+                if (rooms.length > 0) {
+                  schedule.rooms = rooms;
+                }
+                if (automationState?.state === "on") {
+                  schedule.enabled = true;
+                }
+              } catch (e) {
+                console.warn("Ошибка обработки автоматизации:", e);
               }
             }
           }
-          
-          // Извлекаем время из trigger
-          const triggers = Array.isArray(automationConfig.trigger) ? automationConfig.trigger : [automationConfig.trigger];
-          const timeTrigger = triggers.find((t: any) => t.platform === "time");
-          if (!timeTrigger || !timeTrigger.at) {
-            console.warn(`Не найден time trigger в автоматизации ${configId}`);
-            continue;
-          }
-
-          const timeStr = timeTrigger.at; // "HH:MM:SS" или "HH:MM"
-          const time = timeStr.length >= 5 ? timeStr.substring(0, 5) : timeStr; // "HH:MM"
-
-          // Извлекаем комнаты из action
-          const actions = Array.isArray(automationConfig.action) ? automationConfig.action : [automationConfig.action];
-          const action = actions.find((a: any) => a.service === "dreame_vacuum.vacuum_clean_segment" || a.service?.includes("vacuum_clean_segment"));
-          const rooms = action?.data?.segments || action?.segments || [];
-
-          // Получаем или создаем расписание
-          let schedule = automationsMap.get(scheduleId);
-          if (!schedule) {
-            schedule = {
-              id: scheduleId,
-              enabled: automationState?.state === "on",
-              days: [],
-              time: time,
-              rooms: rooms,
-            };
-            automationsMap.set(scheduleId, schedule);
-            console.log(`Создано новое расписание: ${scheduleId}, время: ${time}, комнаты:`, rooms);
-          }
-
-          // Добавляем день
-          if (!schedule.days.includes(day)) {
-            schedule.days.push(day);
-            console.log(`Добавлен день ${day} к расписанию ${scheduleId}`);
-          }
-
-          // Обновляем комнаты (берем из последней автоматизации)
-          if (rooms.length > 0) {
-            schedule.rooms = rooms;
-          }
-
-          // Обновляем enabled статус (если хотя бы одна автоматизация включена)
-          if (automationState?.state === "on") {
-            schedule.enabled = true;
-          }
-        } catch (e) {
-          console.warn(`Ошибка обработки автоматизации:`, e);
+        } catch (error) {
+          console.warn("Не удалось получить список автоматизаций:", error);
         }
       }
-
+      
       // Сортируем дни в каждом расписании
       for (const schedule of automationsMap.values()) {
         schedule.days.sort((a, b) => a - b);
-        console.log("Обработанное расписание:", {
-          id: schedule.id,
-          enabled: schedule.enabled,
-          days: schedule.days,
-          time: schedule.time,
-          rooms: schedule.rooms,
-        });
       }
 
       this._schedules = Array.from(automationsMap.values());
-      console.log("Загружено расписаний из автоматизаций:", this._schedules.length);
-      console.log("Детали всех расписаний:", JSON.stringify(this._schedules, null, 2));
-
-      // Если расписаний нет, пробуем загрузить из input_text (для обратной совместимости)
-      if (this._schedules.length === 0 && this._schedulesEntityId) {
-        const state = this.hass.states[this._schedulesEntityId];
-        if (state && state.state) {
-          try {
-            const parsed = JSON.parse(state.state) || [];
-            if (parsed.length > 0) {
-              this._schedules = parsed;
-              console.log("Загружено расписаний из input_text (fallback):", this._schedules.length);
-            }
-          } catch (e) {
-            console.error("Ошибка парсинга расписаний из input_text:", e);
-          }
-        }
-      }
     } catch (error) {
       this._error = `${this._t("error_loading")} ${error}`;
       console.error(this._error);
@@ -693,8 +581,6 @@ class VacuumScheduleCard extends LitElement {
   }
 
   render() {
-    console.log("render() вызван, количество расписаний:", this._schedules.length, "loading:", this._loading);
-    
     if (!this.hass || !this.entity) {
       return html`<div class="card">
         <div class="content">${this._t("error_no_entity")}</div>
@@ -884,7 +770,6 @@ class VacuumScheduleCard extends LitElement {
   }
 
   private _addSchedule(): void {
-    console.log("_addSchedule called");
     this._newSchedule = {
       enabled: true,
       days: [],
@@ -894,7 +779,6 @@ class VacuumScheduleCard extends LitElement {
     this._editingSchedule = undefined;
     this._error = undefined;
     this._showAddDialog = true;
-    console.log("_showAddDialog set to:", this._showAddDialog);
     this.requestUpdate();
   }
 
@@ -942,31 +826,20 @@ class VacuumScheduleCard extends LitElement {
   }
 
   private async _toggleSchedule(schedule: Schedule, enabled: boolean): Promise<void> {
-    if (!this.hass || !this._schedulesEntityId) return;
+    if (!this.hass) return;
 
     const updatedSchedule = { ...schedule, enabled };
-    const schedules = this._schedules.map(s =>
+    this._schedules = this._schedules.map(s =>
       s.id === schedule.id ? updatedSchedule : s
     );
-
-    try {
-      await this.hass.callService("input_text", "set_value", {
-        entity_id: this._schedulesEntityId,
-        value: JSON.stringify(schedules),
-      });
-      
-      this._schedules = schedules;
-      
-      // Обновляем автоматизации (создаем или удаляем в зависимости от состояния)
-      await this._updateAutomationsForSchedule(updatedSchedule, schedule);
-    } catch (error) {
-      this._error = `${this._t("error_updating")} ${error}`;
-      console.error("Ошибка обновления расписания:", error);
-    }
+    this.requestUpdate();
+    
+    // Обновляем автоматизации
+    await this._updateAutomationsForSchedule(updatedSchedule, schedule);
   }
 
   private async _deleteSchedule(schedule: Schedule): Promise<void> {
-    if (!this.hass || !this._schedulesEntityId) return;
+    if (!this.hass) return;
 
     if (!confirm(this._t("delete_confirm"))) {
       return;
@@ -977,19 +850,8 @@ class VacuumScheduleCard extends LitElement {
       await this._deleteAutomation(schedule.id, day);
     }
 
-    const schedules = this._schedules.filter(s => s.id !== schedule.id);
-
-    try {
-      await this.hass.callService("input_text", "set_value", {
-        entity_id: this._schedulesEntityId,
-        value: JSON.stringify(schedules),
-      });
-      
-      this._schedules = schedules;
-    } catch (error) {
-      this._error = `${this._t("error_deleting")} ${error}`;
-      console.error("Ошибка удаления расписания:", error);
-    }
+    this._schedules = this._schedules.filter(s => s.id !== schedule.id);
+    this.requestUpdate();
   }
 
   private _getDayNameForAutomation(day: number): string {
@@ -1064,9 +926,6 @@ class VacuumScheduleCard extends LitElement {
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
-        console.warn("Данные автоматизации:", automation);
-      } else {
-        console.log(`Автоматизация ${automationId} успешно ${method === "POST" ? "создана" : "обновлена"}`);
       }
     } catch (error) {
       console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
@@ -1095,8 +954,6 @@ class VacuumScheduleCard extends LitElement {
 
       if (!response.ok) {
         console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
-      } else {
-        console.log(`Автоматизация ${automationId} успешно удалена`);
       }
     } catch (error) {
       console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
@@ -1138,7 +995,7 @@ class VacuumScheduleCard extends LitElement {
       return;
     }
 
-    if (!this.hass || !this._schedulesEntityId) {
+    if (!this.hass) {
       this._error = this._t("error_no_hass");
       return;
     }
@@ -1165,36 +1022,15 @@ class VacuumScheduleCard extends LitElement {
     }
 
     try {
-      console.log("Сохранение расписаний:", {
-        entity_id: this._schedulesEntityId,
-        schedules_count: schedules.length,
-        schedules: schedules,
-      });
-      
-      // Сохраняем расписания
-      await this.hass.callService("input_text", "set_value", {
-        entity_id: this._schedulesEntityId,
-        value: JSON.stringify(schedules),
-      });
-      
-      // Небольшая задержка для применения изменений
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Обновляем локальное состояние сразу для немедленного отображения
+      // Обновляем локальное состояние
       this._schedules = schedules;
-      console.log("Расписания обновлены локально:", this._schedules.length, this._schedules);
       this.requestUpdate();
       
-      // Перезагружаем расписания из состояния для синхронизации
-      await this._loadSchedules();
-      
       // Создаем/обновляем автоматизации
-      try {
-        await this._updateAutomationsForSchedule(schedule, oldSchedule);
-      } catch (autoError) {
-        console.warn("Ошибка создания автоматизаций (не критично):", autoError);
-        // Не блокируем сохранение расписания из-за ошибки автоматизаций
-      }
+      await this._updateAutomationsForSchedule(schedule, oldSchedule);
+      
+      // Перезагружаем расписания из автоматизаций для синхронизации
+      await this._loadSchedules();
       
       this._closeDialog();
       this._error = undefined;
@@ -1202,11 +1038,6 @@ class VacuumScheduleCard extends LitElement {
     } catch (error) {
       this._error = `${this._t("error_saving")} ${error}`;
       console.error("Ошибка сохранения расписания:", error);
-      console.error("Детали ошибки:", {
-        entity_id: this._schedulesEntityId,
-        schedules_count: schedules.length,
-        error: error,
-      });
     }
   }
 }

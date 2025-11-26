@@ -14,7 +14,6 @@ declare class VacuumScheduleCard extends LitElement {
     private _editingSchedule?;
     private _rooms;
     private _config?;
-    private _schedulesEntityId?;
     private _newSchedule;
     setConfig(config: VacuumScheduleCardConfig): void;
     connectedCallback(): void;
