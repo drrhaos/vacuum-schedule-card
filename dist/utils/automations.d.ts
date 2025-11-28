@@ -1,9 +1,13 @@
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
 /**
- * Получает список всех автоматизаций через hass.callApi()
- * Использует официальный метод из hass объекта согласно документации:
- * https://developers.home-assistant.io/docs/frontend/data
+ * Получает список всех автоматизаций используя только задокументированные методы
+ * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+ *
+ * Использует команду get_config из WebSocket API, которая возвращает конфигурацию Home Assistant.
+ * Автоматизации могут быть в config.components.automation или в другом месте конфигурации.
+ *
+ * Если get_config не содержит автоматизаций, используем hass.states как fallback.
  */
 export declare function getAllAutomations(hass: HomeAssistant): Promise<any[]>;
 /**

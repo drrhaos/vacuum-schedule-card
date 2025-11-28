@@ -2,28 +2,74 @@ import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
 
 /**
- * Получает список всех автоматизаций через hass.callApi()
- * Использует официальный метод из hass объекта согласно документации:
- * https://developers.home-assistant.io/docs/frontend/data
+ * Получает список всех автоматизаций используя только задокументированные методы
+ * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+ * 
+ * Использует команду get_config из WebSocket API, которая возвращает конфигурацию Home Assistant.
+ * Автоматизации могут быть в config.components.automation или в другом месте конфигурации.
+ * 
+ * Если get_config не содержит автоматизаций, используем hass.states как fallback.
  */
 export async function getAllAutomations(
   hass: HomeAssistant
 ): Promise<any[]> {
   try {
-    // Используем hass.callApi() вместо прямых fetch запросов
-    // Путь должен быть без /api/ префикса, так как callApi сам добавляет его
-    const automations = await hass.callApi("GET", "config/automation");
-    
-    // REST API может вернуть массив или объект (для file-based конфигурации)
-    if (Array.isArray(automations)) {
-      return automations;
-    } else if (typeof automations === "object" && automations !== null) {
-      // Если это объект, преобразуем в массив
-      return Object.values(automations);
+    // Пробуем использовать задокументированную команду get_config
+    if (hass.connection && typeof (hass.connection as any).sendMessagePromise === "function") {
+      try {
+        const wsResult: any = await (hass.connection as any).sendMessagePromise({
+          type: "get_config",
+        });
+
+        if (wsResult?.success && wsResult.result) {
+          const config = wsResult.result;
+          
+          // Автоматизации могут быть в разных местах конфигурации
+          // Проверяем возможные пути
+          if (config.components?.automation) {
+            // Автоматизации в конфигурации компонента
+            const automations = config.components.automation;
+            if (Array.isArray(automations)) {
+              return automations;
+            }
+          }
+          
+          // Может быть в другом формате
+          if (config.automation && Array.isArray(config.automation)) {
+            return config.automation;
+          }
+        }
+      } catch (error: any) {
+        console.warn("Ошибка получения конфигурации через get_config:", error);
+      }
     }
 
-    console.warn("Автоматизации не в ожидаемом формате");
-    return [];
+    // Fallback: используем hass.states
+    // Но это даст только состояния, без полной конфигурации
+    const automationEntities = Object.keys(hass.states).filter(
+      (entityId) => entityId.startsWith("automation.")
+    );
+
+    if (automationEntities.length === 0) {
+      return [];
+    }
+
+    // Преобразуем состояния в объекты
+    // Полной конфигурации (trigger, action) у нас не будет
+    const automations = automationEntities.map((entityId) => {
+      const state = hass.states[entityId];
+      const automationId = entityId.replace("automation.", "");
+      
+      return {
+        id: state.attributes?.id || automationId,
+        alias: state.attributes?.friendly_name || automationId,
+        _entity_id: entityId,
+        _state: state.state,
+        _attributes: state.attributes,
+      };
+    });
+
+    return automations;
   } catch (error: any) {
     console.warn("Ошибка получения списка автоматизаций:", error);
     return [];
