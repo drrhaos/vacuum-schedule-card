@@ -2,90 +2,49 @@ import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
 
 /**
- * Получает список всех автоматизаций через WebSocket API
+ * Получает список всех автоматизаций через hass.callApi()
+ * Использует официальный метод из hass объекта согласно документации:
+ * https://developers.home-assistant.io/docs/frontend/data
  */
-export async function getAllAutomationsViaWebSocket(
+export async function getAllAutomations(
   hass: HomeAssistant
 ): Promise<any[]> {
-  if (!hass.connection || typeof (hass.connection as any).sendMessagePromise !== "function") {
-    console.warn("WebSocket connection недоступен для получения списка автоматизаций");
-    return [];
-  }
-
   try {
-    const wsResult: any = await (hass.connection as any).sendMessagePromise({
-      type: "config/automation/list",
-    });
-
-    if (wsResult?.success && Array.isArray(wsResult.result)) {
-      return wsResult.result;
+    // Используем hass.callApi() вместо прямых fetch запросов
+    // Путь должен быть без /api/ префикса, так как callApi сам добавляет его
+    const automations = await hass.callApi("GET", "config/automation");
+    
+    // REST API может вернуть массив или объект (для file-based конфигурации)
+    if (Array.isArray(automations)) {
+      return automations;
+    } else if (typeof automations === "object" && automations !== null) {
+      // Если это объект, преобразуем в массив
+      return Object.values(automations);
     }
 
-    console.warn("WebSocket API вернул неожиданный результат для списка автоматизаций");
+    console.warn("Автоматизации не в ожидаемом формате");
     return [];
   } catch (error: any) {
-    console.warn("Ошибка получения списка автоматизаций через WebSocket:", error);
+    console.warn("Ошибка получения списка автоматизаций:", error);
     return [];
   }
 }
 
 /**
- * Получает конфигурацию автоматизации через WebSocket или REST API
+ * Получает конфигурацию автоматизации по ID из списка всех автоматизаций
+ * Использует только задокументированный эндпоинт /api/config/automation
  */
 export async function getAutomationConfig(
   hass: HomeAssistant,
-  automationEntityId: string
+  automationId: string
 ): Promise<any | null> {
-  let automationConfig: any = null;
-
-  if (hass.connection && typeof (hass.connection as any).sendMessagePromise === "function") {
-    try {
-      // Используем WebSocket API для получения конфигурации автоматизации
-      const wsResult: any = await (hass.connection as any).sendMessagePromise({
-        type: "automation/get",
-        automation_id: automationEntityId,
-      });
-
-      if (wsResult?.success && wsResult.result) {
-        automationConfig = wsResult.result;
-        return automationConfig;
-      }
-    } catch (wsError: any) {
-      // Если WebSocket не поддерживает automation/get, пробуем REST API как fallback
-      if (wsError.code !== "unknown_command") {
-        console.warn(`WebSocket API не сработал для ${automationEntityId}:`, wsError);
-      }
-    }
-  }
-
-  // Fallback на REST API
-  const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(`/api/config/automation/config/${automationEntityId}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (response.ok) {
-      automationConfig = await response.json();
-      return automationConfig;
-    } else if (response.status === 404) {
-      return null;
-    } else {
-      console.warn(`Ошибка получения конфигурации для ${automationEntityId}: ${response.status}`);
-      return null;
-    }
-  } catch (e) {
-    console.warn(`Не удалось получить конфигурацию для ${automationEntityId}:`, e);
-    return null;
-  }
+  // Получаем все автоматизации через задокументированный эндпоинт
+  const allAutomations = await getAllAutomations(hass);
+  
+  // Ищем автоматизацию по id
+  const automation = allAutomations.find((a: any) => a.id === automationId);
+  
+  return automation || null;
 }
 
 /**
@@ -135,151 +94,36 @@ export function parseScheduleFromAutomation(
 
 /**
  * Создает или обновляет автоматизацию
+ * 
+ * Примечание: В официальной документации Home Assistant нет задокументированных методов
+ * для создания/обновления автоматизаций через REST API или WebSocket API.
+ * Эта функция всегда возвращает false, так как использует только задокументированные методы.
  */
 export async function createOrUpdateAutomation(
   hass: HomeAssistant,
   automation: any
 ): Promise<boolean> {
-  const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
-  if (!token) {
-    console.warn("Токен авторизации не найден для создания автоматизации");
-    return false;
-  }
-
-  try {
-    // Получаем все автоматизации
-    let response = await fetch(`/api/config/automation/config`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      console.warn(`Не удалось получить список автоматизаций:`, response.status);
-      return false;
-    }
-
-    let allAutomations: any[] = await response.json();
-    if (!Array.isArray(allAutomations)) {
-      console.warn("Автоматизации не в формате массива (file-based)");
-      return false;
-    }
-
-    // Ищем существующую автоматизацию
-    const existingIndex = allAutomations.findIndex((a: any) => a.id === automation.id);
-
-    if (existingIndex >= 0) {
-      // Обновляем существующую
-      allAutomations[existingIndex] = automation;
-    } else {
-      // Добавляем новую
-      allAutomations.push(automation);
-    }
-
-    // Отправляем обновленный массив обратно
-    response = await fetch(`/api/config/automation/config`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(allAutomations),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.warn(
-        `Не удалось ${existingIndex >= 0 ? "обновить" : "создать"} автоматизацию ${automation.id}:`,
-        response.status,
-        errorText
-      );
-      return false;
-    }
-
-    // Перезагружаем автоматизации для обновления кеша
-    try {
-      await hass.callService("automation", "reload");
-      // Небольшая задержка для применения изменений
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    } catch (reloadError) {
-      console.warn("Не удалось перезагрузить автоматизации:", reloadError);
-    }
-
-    return true;
-  } catch (error) {
-    console.warn(`Ошибка создания автоматизации ${automation.id}:`, error);
-    return false;
-  }
+  console.warn(
+    `Не удалось создать/обновить автоматизацию ${automation.id}: нет задокументированного API метода для создания/обновления автоматизаций в Home Assistant`
+  );
+  return false;
 }
 
 /**
  * Удаляет автоматизацию
+ * 
+ * Примечание: В официальной документации Home Assistant нет задокументированных методов
+ * для удаления автоматизаций через REST API или WebSocket API.
+ * Эта функция всегда возвращает false, так как использует только задокументированные методы.
  */
 export async function deleteAutomation(
   hass: HomeAssistant,
   automationId: string
 ): Promise<boolean> {
-  const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
-  if (!token) {
-    console.warn("Токен авторизации не найден для удаления автоматизации");
-    return false;
-  }
-
-  try {
-    // Получаем все автоматизации
-    let response = await fetch(`/api/config/automation/config`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      console.warn(`Не удалось получить список автоматизаций:`, response.status);
-      return false;
-    }
-
-    let allAutomations: any[] = await response.json();
-    if (!Array.isArray(allAutomations)) {
-      console.warn("Автоматизации не в формате массива (file-based)");
-      return false;
-    }
-
-    // Удаляем автоматизацию из массива
-    allAutomations = allAutomations.filter((a: any) => a.id !== automationId);
-
-    // Отправляем обновленный массив обратно
-    response = await fetch(`/api/config/automation/config`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(allAutomations),
-    });
-
-    if (!response.ok) {
-      console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
-      return false;
-    }
-
-    // Перезагружаем автоматизации для обновления кеша
-    try {
-      await hass.callService("automation", "reload");
-      // Небольшая задержка для применения изменений
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    } catch (reloadError) {
-      console.warn("Не удалось перезагрузить автоматизации:", reloadError);
-    }
-
-    return true;
-  } catch (error) {
-    console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
-    return false;
-  }
+  console.warn(
+    `Не удалось удалить автоматизацию ${automationId}: нет задокументированного API метода для удаления автоматизаций в Home Assistant`
+  );
+  return false;
 }
 
 /**

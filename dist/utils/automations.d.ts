@@ -1,13 +1,16 @@
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
 /**
- * Получает список всех автоматизаций через WebSocket API
+ * Получает список всех автоматизаций через hass.callApi()
+ * Использует официальный метод из hass объекта согласно документации:
+ * https://developers.home-assistant.io/docs/frontend/data
  */
-export declare function getAllAutomationsViaWebSocket(hass: HomeAssistant): Promise<any[]>;
+export declare function getAllAutomations(hass: HomeAssistant): Promise<any[]>;
 /**
- * Получает конфигурацию автоматизации через WebSocket или REST API
+ * Получает конфигурацию автоматизации по ID из списка всех автоматизаций
+ * Использует только задокументированный эндпоинт /api/config/automation
  */
-export declare function getAutomationConfig(hass: HomeAssistant, automationEntityId: string): Promise<any | null>;
+export declare function getAutomationConfig(hass: HomeAssistant, automationId: string): Promise<any | null>;
 /**
  * Парсит расписание из конфигурации автоматизации
  */
@@ -20,10 +23,18 @@ export declare function parseScheduleFromAutomation(automationConfig: any, autom
 } | null;
 /**
  * Создает или обновляет автоматизацию
+ *
+ * Примечание: В официальной документации Home Assistant нет задокументированных методов
+ * для создания/обновления автоматизаций через REST API или WebSocket API.
+ * Эта функция всегда возвращает false, так как использует только задокументированные методы.
  */
 export declare function createOrUpdateAutomation(hass: HomeAssistant, automation: any): Promise<boolean>;
 /**
  * Удаляет автоматизацию
+ *
+ * Примечание: В официальной документации Home Assistant нет задокументированных методов
+ * для удаления автоматизаций через REST API или WebSocket API.
+ * Эта функция всегда возвращает false, так как использует только задокументированные методы.
  */
 export declare function deleteAutomation(hass: HomeAssistant, automationId: string): Promise<boolean>;
 /**

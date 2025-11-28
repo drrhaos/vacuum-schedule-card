@@ -3,7 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import type { VacuumScheduleCardConfig, Schedule, Room } from "./types";
 import {
-  getAllAutomationsViaWebSocket,
+  getAllAutomations,
   parseScheduleFromAutomation,
   createOrUpdateAutomation,
   deleteAutomation,
@@ -122,11 +122,13 @@ class VacuumScheduleCard extends LitElement {
     try {
       const automationsMap = new Map<string, Schedule>();
 
-      // Получаем все автоматизации через WebSocket API
+      // Получаем все автоматизации через REST API
+      // WebSocket API не поддерживает команду для получения списка всех автоматизаций,
+      // поэтому используем REST API, который является официально поддерживаемым методом
       // Это оптимальнее, чем перебирать hass.states, так как имена там транслитерируются
-      const allAutomations = await getAllAutomationsViaWebSocket(this.hass);
+      const allAutomations = await getAllAutomations(this.hass);
 
-      console.log("Всего автоматизаций получено через WebSocket:", allAutomations.length);
+      console.log("Всего автоматизаций получено:", allAutomations.length);
 
       // Обрабатываем каждую автоматизацию
       for (const automationConfig of allAutomations) {
