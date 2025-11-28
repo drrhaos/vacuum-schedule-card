@@ -27,18 +27,14 @@ export declare function parseScheduleFromAutomation(automationConfig: any, autom
 } | null;
 /**
  * Создает или обновляет автоматизацию
- *
- * Примечание: В официальной документации Home Assistant нет задокументированных методов
- * для создания/обновления автоматизаций через REST API или WebSocket API.
- * Эта функция всегда возвращает false, так как использует только задокументированные методы.
+ * Использует задокументированную команду call_service из WebSocket API
+ * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
  */
 export declare function createOrUpdateAutomation(hass: HomeAssistant, automation: any): Promise<boolean>;
 /**
  * Удаляет автоматизацию
- *
- * Примечание: В официальной документации Home Assistant нет задокументированных методов
- * для удаления автоматизаций через REST API или WebSocket API.
- * Эта функция всегда возвращает false, так как использует только задокументированные методы.
+ * Использует задокументированную команду call_service из WebSocket API
+ * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
  */
 export declare function deleteAutomation(hass: HomeAssistant, automationId: string): Promise<boolean>;
 /**

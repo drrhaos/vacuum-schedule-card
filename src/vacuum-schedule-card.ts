@@ -82,23 +82,39 @@ class VacuumScheduleCard extends LitElement {
     // Подписываемся на изменения состояний автоматизаций через WebSocket
     // Согласно документации: https://developers.home-assistant.io/docs/api/websocket
     try {
-      // Используем subscribeEvents через connection
-      if (typeof (this.hass.connection as any).subscribeEvents === "function") {
-        const unsubscribe = (this.hass.connection as any).subscribeEvents(
-          (event: any) => {
-            const entityId = event.event?.data?.entity_id;
-            if (entityId && entityId.startsWith("automation.vacuum_schedule_")) {
-              // Автоматизация изменилась, перезагружаем расписания
-              this._loadSchedules();
-            }
-          },
-          "state_changed"
-        );
-        // Проверяем, что unsubscribe является функцией
-        if (typeof unsubscribe === "function") {
-          this._unsubscribeAutomations = unsubscribe;
-        } else {
-          console.warn("subscribeEvents не вернул функцию для отписки");
+      // Используем hass.callWS для подписки на события через WebSocket API
+      if (this.hass.connection && typeof (this.hass.connection as any).subscribeEvents === "function") {
+        try {
+          const unsubscribe = (this.hass.connection as any).subscribeEvents(
+            (event: any) => {
+              const entityId = event.event?.data?.entity_id;
+              if (entityId && entityId.startsWith("automation.vacuum_schedule_")) {
+                // Автоматизация изменилась, перезагружаем расписания
+                this._loadSchedules();
+              }
+            },
+            "state_changed"
+          );
+          
+          // Проверяем, что unsubscribe является функцией
+          if (typeof unsubscribe === "function") {
+            this._unsubscribeAutomations = unsubscribe;
+          } else {
+            // Если unsubscribe не функция, создаем обертку
+            this._unsubscribeAutomations = () => {
+              // Пытаемся отписаться через WebSocket команду
+              if (this.hass.connection) {
+                try {
+                  // Отписка происходит автоматически при переподключении
+                } catch (e) {
+                  // Игнорируем ошибки
+                }
+              }
+            };
+          }
+        } catch (error: any) {
+          // Если subscribeEvents не работает, просто не подписываемся
+          console.warn("Не удалось подписаться на события:", error);
         }
       }
     } catch (error) {

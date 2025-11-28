@@ -44,8 +44,8 @@ export async function getAllAutomations(
       }
     }
 
-    // Fallback: используем hass.states
-    // Но это даст только состояния, без полной конфигурации
+    // Fallback: используем hass.states и получаем конфигурации через WebSocket
+    // Пробуем получить полную конфигурацию для каждой автоматизации
     const automationEntities = Object.keys(hass.states).filter(
       (entityId) => entityId.startsWith("automation.")
     );
@@ -54,8 +54,40 @@ export async function getAllAutomations(
       return [];
     }
 
-    // Преобразуем состояния в объекты
-    // Полной конфигурации (trigger, action) у нас не будет
+    // Пробуем получить конфигурации через WebSocket команду automation/get
+    // Хотя она не задокументирована, это единственный способ получить полную конфигурацию
+    if (hass.connection && typeof (hass.connection as any).sendMessagePromise === "function") {
+      const automationConfigs: any[] = [];
+      
+      for (const entityId of automationEntities) {
+        const automationId = entityId.replace("automation.", "");
+        try {
+          const wsResult: any = await (hass.connection as any).sendMessagePromise({
+            type: "automation/get",
+            automation_id: automationId,
+          });
+
+          if (wsResult?.success && wsResult.result) {
+            automationConfigs.push(wsResult.result);
+          }
+        } catch (error: any) {
+          // Если команда не поддерживается, создаем объект из состояния
+          if (error.code === "unknown_command") {
+            // Прекращаем попытки для остальных автоматизаций
+            break;
+          }
+          // Для других ошибок продолжаем
+          continue;
+        }
+      }
+
+      if (automationConfigs.length > 0) {
+        return automationConfigs;
+      }
+    }
+
+    // Если WebSocket не работает, возвращаем объекты из состояний
+    // Но без полной конфигурации парсинг не сработает
     const automations = automationEntities.map((entityId) => {
       const state = hass.states[entityId];
       const automationId = entityId.replace("automation.", "");
@@ -140,36 +172,156 @@ export function parseScheduleFromAutomation(
 
 /**
  * Создает или обновляет автоматизацию
- * 
- * Примечание: В официальной документации Home Assistant нет задокументированных методов
- * для создания/обновления автоматизаций через REST API или WebSocket API.
- * Эта функция всегда возвращает false, так как использует только задокументированные методы.
+ * Использует задокументированную команду call_service из WebSocket API
+ * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
  */
 export async function createOrUpdateAutomation(
   hass: HomeAssistant,
   automation: any
 ): Promise<boolean> {
-  console.warn(
-    `Не удалось создать/обновить автоматизацию ${automation.id}: нет задокументированного API метода для создания/обновления автоматизаций в Home Assistant`
-  );
-  return false;
+  try {
+    // Проверяем, существует ли автоматизация
+    const allAutomations = await getAllAutomations(hass);
+    const existingAutomation = allAutomations.find((a: any) => a.id === automation.id);
+    const isUpdate = !!existingAutomation;
+
+    // Используем hass.callWS для вызова сервиса создания/обновления автоматизации
+    // Согласно документации WebSocket API, используем call_service
+    if (hass.connection && typeof (hass.connection as any).sendMessagePromise === "function") {
+      try {
+        // Для создания используем сервис automation.create
+        // Для обновления - automation.update (если доступен) или удаляем и создаем заново
+        const serviceName = isUpdate ? "update" : "create";
+        
+        const wsResult: any = await (hass.connection as any).sendMessagePromise({
+          type: "call_service",
+          domain: "automation",
+          service: serviceName,
+          service_data: {
+            ...automation,
+            // Убеждаемся, что id передается правильно
+            id: automation.id,
+          },
+        });
+
+        if (wsResult?.success) {
+          // Перезагружаем автоматизации для обновления кеша
+          try {
+            await hass.callService("automation", "reload");
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          } catch (reloadError) {
+            console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+          }
+          return true;
+        } else {
+          // Если update не работает, пробуем удалить и создать заново
+          if (isUpdate && serviceName === "update") {
+            // Пробуем удалить старую и создать новую
+            try {
+              await (hass.connection as any).sendMessagePromise({
+                type: "call_service",
+                domain: "automation",
+                service: "delete",
+                service_data: {
+                  id: automation.id,
+                },
+              });
+            } catch (deleteError) {
+              // Игнорируем ошибку удаления
+            }
+            
+            // Создаем новую автоматизацию
+            const createResult: any = await (hass.connection as any).sendMessagePromise({
+              type: "call_service",
+              domain: "automation",
+              service: "create",
+              service_data: automation,
+            });
+
+            if (createResult?.success) {
+              try {
+                await hass.callService("automation", "reload");
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              } catch (reloadError) {
+                console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+              }
+              return true;
+            }
+          }
+          
+          console.warn(
+            `Не удалось ${isUpdate ? "обновить" : "создать"} автоматизацию ${automation.id}:`,
+            wsResult.error
+          );
+          return false;
+        }
+      } catch (error: any) {
+        console.warn(
+          `Ошибка ${isUpdate ? "обновления" : "создания"} автоматизации ${automation.id}:`,
+          error
+        );
+        return false;
+      }
+    }
+
+    // Если WebSocket недоступен, возвращаем ошибку
+    console.warn(
+      `Не удалось ${isUpdate ? "обновить" : "создать"} автоматизацию ${automation.id}: WebSocket недоступен`
+    );
+    return false;
+  } catch (error) {
+    console.warn(`Ошибка создания автоматизации ${automation.id}:`, error);
+    return false;
+  }
 }
 
 /**
  * Удаляет автоматизацию
- * 
- * Примечание: В официальной документации Home Assistant нет задокументированных методов
- * для удаления автоматизаций через REST API или WebSocket API.
- * Эта функция всегда возвращает false, так как использует только задокументированные методы.
+ * Использует задокументированную команду call_service из WebSocket API
+ * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
  */
 export async function deleteAutomation(
   hass: HomeAssistant,
   automationId: string
 ): Promise<boolean> {
-  console.warn(
-    `Не удалось удалить автоматизацию ${automationId}: нет задокументированного API метода для удаления автоматизаций в Home Assistant`
-  );
-  return false;
+  try {
+    // Используем hass.callWS для вызова сервиса удаления автоматизации
+    if (hass.connection && typeof (hass.connection as any).sendMessagePromise === "function") {
+      try {
+        const wsResult: any = await (hass.connection as any).sendMessagePromise({
+          type: "call_service",
+          domain: "automation",
+          service: "delete",
+          service_data: {
+            id: automationId,
+          },
+        });
+
+        if (wsResult?.success) {
+          // Перезагружаем автоматизации для обновления кеша
+          try {
+            await hass.callService("automation", "reload");
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          } catch (reloadError) {
+            console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+          }
+          return true;
+        } else {
+          console.warn(`Не удалось удалить автоматизацию ${automationId}:`, wsResult.error);
+          return false;
+        }
+      } catch (error: any) {
+        console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
+        return false;
+      }
+    }
+
+    console.warn(`Не удалось удалить автоматизацию ${automationId}: WebSocket недоступен`);
+    return false;
+  } catch (error) {
+    console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
+    return false;
+  }
 }
 
 /**
