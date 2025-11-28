@@ -152,6 +152,17 @@ class VacuumScheduleCard extends LitElement {
           // Проверяем, относится ли автоматизация к расписаниям по id в конфигурации
           // Не используем entity_id, так как он может быть транслитерирован
           const configId = automationConfig.id || "";
+          
+          // Логируем для отладки
+          if (configId.includes("vacuum_schedule")) {
+            console.log("Найдена потенциальная автоматизация расписания:", {
+              id: configId,
+              hasTrigger: !!automationConfig.trigger,
+              hasAction: !!automationConfig.action,
+              config: automationConfig,
+            });
+          }
+          
           if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
             continue;
           }
