@@ -279,20 +279,36 @@ class VacuumScheduleCard extends LitElement {
     try {
       const automationsMap = new Map<string, Schedule>();
       
-      // Получаем автоматизации из hass.states (WebSocket уже обновляет это в реальном времени)
-      // Получаем все автоматизации из hass.states
-      const allAutomationEntities = Object.keys(this.hass.states).filter(
+      // Получаем все сущности через API как дополнительный источник
+      const apiEntities = await this._getAllEntitiesFromAPI();
+      
+      // Получаем автоматизации из hass.states и из API
+      const hassAutomationEntities = Object.keys(this.hass.states).filter(
         entityId => entityId.startsWith("automation.")
       );
       
-      console.log("Всего автоматизаций в hass.states:", allAutomationEntities.length);
+      // Получаем автоматизации из API
+      const apiAutomationEntities = apiEntities 
+        ? Object.keys(apiEntities).filter(entityId => entityId.startsWith("automation."))
+        : [];
+      
+      // Объединяем списки, убирая дубликаты
+      const allAutomationEntities = Array.from(new Set([
+        ...hassAutomationEntities,
+        ...apiAutomationEntities
+      ]));
+      
+      console.log("Всего автоматизаций в hass.states:", hassAutomationEntities.length);
+      console.log("Всего автоматизаций в API:", apiAutomationEntities.length);
+      console.log("Всего уникальных автоматизаций:", allAutomationEntities.length);
       console.log("Список всех автоматизаций:", allAutomationEntities);
       
       // Получаем конфигурацию каждой автоматизации через WebSocket API
       // Согласно документации: https://developers.home-assistant.io/docs/api/websocket
       for (const entityId of allAutomationEntities) {
         try {
-          const automationState = this.hass.states[entityId];
+          // Получаем состояние из hass.states или из API
+          const automationState = this.hass.states[entityId] || apiEntities?.[entityId] || null;
           const automationEntityId = entityId.replace("automation.", "");
           
           // Получаем конфигурацию автоматизации через WebSocket API
@@ -432,6 +448,52 @@ class VacuumScheduleCard extends LitElement {
 
   public getCardSize(): number {
     return 3;
+  }
+
+  public getGridOptions() {
+    return {
+      rows: 3,
+      columns: 6,
+      min_rows: 2,
+      max_rows: 6,
+      min_columns: 3,
+      max_columns: 12,
+    };
+  }
+
+  static getStubConfig(): VacuumScheduleCardConfig {
+    return {
+      entity: "vacuum.example",
+      type: "custom:vacuum-schedule-card",
+    };
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        {
+          name: "entity",
+          required: true,
+          selector: {
+            entity: {
+              domain: "vacuum",
+            },
+          },
+        },
+      ],
+      computeLabel: (schema) => {
+        if (schema.name === "entity") {
+          return "Vacuum Entity";
+        }
+        return undefined;
+      },
+      computeHelper: (schema) => {
+        if (schema.name === "entity") {
+          return "Select the vacuum entity to manage schedules for";
+        }
+        return undefined;
+      },
+    };
   }
 
   static get styles() {

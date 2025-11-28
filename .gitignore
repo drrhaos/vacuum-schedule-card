@@ -4,6 +4,6 @@ node_modules/
 *.js.map
 .env
 # Keep dist folder for releases
-dist/
+!dist/
 !dist/vacuum-schedule-card.js
 
