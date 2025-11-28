@@ -246,51 +246,76 @@ class VacuumScheduleCard extends LitElement {
       // Получаем автоматизации из hass.states
       const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
       
-      // Ищем все автоматизации с префиксом vacuum_schedule_ в entity_id
-      const automationEntities = Object.keys(this.hass.states).filter(
-        entityId => entityId.startsWith("automation.vacuum_schedule_") && entityId.includes("_day_")
+      // Получаем все автоматизации из hass.states
+      const allAutomationEntities = Object.keys(this.hass.states).filter(
+        entityId => entityId.startsWith("automation.")
       );
       
-      console.log("Найдено автоматизаций расписаний в hass.states:", automationEntities.length);
-      console.log("Список entity_id автоматизаций:", automationEntities);
+      console.log("Всего автоматизаций в hass.states:", allAutomationEntities.length);
+      console.log("Список всех автоматизаций:", allAutomationEntities);
       
-      // Получаем конфигурацию каждой автоматизации
-      for (const entityId of automationEntities) {
+      // Получаем конфигурацию каждой автоматизации и проверяем, относится ли она к расписаниям
+      for (const entityId of allAutomationEntities) {
         try {
           const automationState = this.hass.states[entityId];
-          const automationId = entityId.replace("automation.", "");
-          
-          // Парсим id из entity_id: vacuum_schedule_{scheduleId}_day_{day}
-          const idMatch = automationId.match(/^vacuum_schedule_(.+)_day_(\d+)$/);
-          if (!idMatch) continue;
-          
-          const scheduleId = idMatch[1];
-          const day = parseInt(idMatch[2], 10);
+          const automationEntityId = entityId.replace("automation.", "");
           
           // Получаем конфигурацию автоматизации через REST API
           let automationConfig: any = null;
           if (token) {
             try {
-              const response = await fetch(`/api/config/automation/config/${automationId}`, {
+              // Пробуем получить по entity_id (может быть на основе alias)
+              // Используем REST API согласно документации: https://developers.home-assistant.io/docs/api/rest/
+              let response = await fetch(`/api/config/automation/config/${automationEntityId}`, {
                 method: "GET",
                 headers: {
                   Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
                 },
               });
               
               if (response.ok) {
                 automationConfig = await response.json();
+              } else if (response.status === 404) {
+                // Если 404, возможно entity_id не совпадает с id
+                // Проверяем атрибуты состояния на наличие признаков расписания
+                const attributes = automationState?.attributes || {};
+                const description = attributes.description || "";
+                const friendlyName = attributes.friendly_name || "";
+                
+                // Если в описании или имени есть признаки расписания, логируем для отладки
+                if (description.includes("расписания уборки") || description.includes("schedule") || 
+                    friendlyName.includes("Расписание уборки") || friendlyName.includes("schedule")) {
+                  console.log(`Автоматизация с признаками расписания (404): entity_id=${entityId}, description=${description}, friendly_name=${friendlyName}`);
+                }
+                continue;
+              } else {
+                // Другие ошибки
+                console.warn(`Ошибка получения конфигурации для ${automationEntityId}: ${response.status}`);
+                continue;
               }
             } catch (e) {
-              console.warn(`Не удалось получить конфигурацию для ${automationId}:`, e);
+              console.warn(`Не удалось получить конфигурацию для ${automationEntityId}:`, e);
+              continue;
             }
-          }
-          
-          // Если не получили конфигурацию, пропускаем
-          if (!automationConfig) {
-            console.warn(`Конфигурация не найдена для ${automationId}`);
+          } else {
             continue;
           }
+          
+          // Проверяем, относится ли автоматизация к расписаниям по id
+          const configId = automationConfig.id || "";
+          if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
+            continue;
+          }
+          
+          console.log(`Найдена автоматизация расписания: entity_id=${entityId}, id=${configId}`);
+          
+          // Парсим id: vacuum_schedule_{scheduleId}_day_{day}
+          const idMatch = configId.match(/^vacuum_schedule_(.+)_day_(\d+)$/);
+          if (!idMatch) continue;
+          
+          const scheduleId = idMatch[1];
+          const day = parseInt(idMatch[2], 10);
           
           // Извлекаем время из trigger
           const triggers = Array.isArray(automationConfig.trigger) ? automationConfig.trigger : [automationConfig.trigger];
@@ -332,8 +357,8 @@ class VacuumScheduleCard extends LitElement {
         }
       }
       
-      // Логируем все найденные автоматизации
-      console.log("Всего обработано автоматизаций:", automationEntities.length);
+      // Логируем результаты
+      console.log("Всего обработано автоматизаций:", allAutomationEntities.length);
       console.log("Создано расписаний:", automationsMap.size);
       
       // Сортируем дни в каждом расписании
@@ -922,6 +947,7 @@ class VacuumScheduleCard extends LitElement {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
@@ -958,10 +984,12 @@ class VacuumScheduleCard extends LitElement {
       }
 
       // Удаляем автоматизацию из папки
+      // Используем REST API согласно документации: https://developers.home-assistant.io/docs/api/rest/
       const response = await fetch(`/api/config/automation/config/${automationId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
