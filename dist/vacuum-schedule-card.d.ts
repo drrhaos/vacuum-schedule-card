@@ -1,9 +1,6 @@
 import { LitElement } from "lit";
 import type { HomeAssistant } from "custom-card-helpers";
-interface VacuumScheduleCardConfig {
-    entity: string;
-    type: string;
-}
+import type { VacuumScheduleCardConfig } from "./types";
 declare class VacuumScheduleCard extends LitElement {
     hass: HomeAssistant;
     entity: string;
@@ -23,8 +20,29 @@ declare class VacuumScheduleCard extends LitElement {
     private _loadRooms;
     private _loadSchedules;
     getCardSize(): number;
+    getGridOptions(): {
+        rows: number;
+        columns: number;
+        min_rows: number;
+        max_rows: number;
+        min_columns: number;
+        max_columns: number;
+    };
+    static getStubConfig(): VacuumScheduleCardConfig;
+    static getConfigForm(): {
+        schema: {
+            name: string;
+            required: boolean;
+            selector: {
+                entity: {
+                    domain: string;
+                };
+            };
+        }[];
+        computeLabel: (schema: any) => "Vacuum Entity" | undefined;
+        computeHelper: (schema: any) => "Select the vacuum entity to manage schedules for" | undefined;
+    };
     static get styles(): import("lit").CSSResult;
-    private _getLanguage;
     private _t;
     private _getDayNames;
     private _formatDays;
@@ -37,7 +55,6 @@ declare class VacuumScheduleCard extends LitElement {
     private _editSchedule;
     private _toggleSchedule;
     private _deleteSchedule;
-    private _getDayNameForAutomation;
     private _createAutomation;
     private _deleteAutomation;
     private _updateAutomationsForSchedule;
