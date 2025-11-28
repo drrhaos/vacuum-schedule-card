@@ -2,6 +2,34 @@ import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
 
 /**
+ * Получает список всех автоматизаций через WebSocket API
+ */
+export async function getAllAutomationsViaWebSocket(
+  hass: HomeAssistant
+): Promise<any[]> {
+  if (!hass.connection || typeof (hass.connection as any).sendMessagePromise !== "function") {
+    console.warn("WebSocket connection недоступен для получения списка автоматизаций");
+    return [];
+  }
+
+  try {
+    const wsResult: any = await (hass.connection as any).sendMessagePromise({
+      type: "config/automation/list",
+    });
+
+    if (wsResult?.success && Array.isArray(wsResult.result)) {
+      return wsResult.result;
+    }
+
+    console.warn("WebSocket API вернул неожиданный результат для списка автоматизаций");
+    return [];
+  } catch (error: any) {
+    console.warn("Ошибка получения списка автоматизаций через WebSocket:", error);
+    return [];
+  }
+}
+
+/**
  * Получает конфигурацию автоматизации через WebSocket или REST API
  */
 export async function getAutomationConfig(

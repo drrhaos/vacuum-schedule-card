@@ -1,6 +1,10 @@
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
 /**
+ * Получает список всех автоматизаций через WebSocket API
+ */
+export declare function getAllAutomationsViaWebSocket(hass: HomeAssistant): Promise<any[]>;
+/**
  * Получает конфигурацию автоматизации через WebSocket или REST API
  */
 export declare function getAutomationConfig(hass: HomeAssistant, automationEntityId: string): Promise<any | null>;

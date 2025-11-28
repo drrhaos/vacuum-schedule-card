@@ -2,9 +2,8 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import type { VacuumScheduleCardConfig, Schedule, Room } from "./types";
-import { getAllEntitiesFromAPI } from "./utils/api";
 import {
-  getAutomationConfig,
+  getAllAutomationsViaWebSocket,
   parseScheduleFromAutomation,
   createOrUpdateAutomation,
   deleteAutomation,
@@ -57,14 +56,28 @@ class VacuumScheduleCard extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._unsubscribeAutomations) {
-      this._unsubscribeAutomations();
+    if (this._unsubscribeAutomations && typeof this._unsubscribeAutomations === "function") {
+      try {
+        this._unsubscribeAutomations();
+      } catch (error) {
+        console.warn("Ошибка при отписке от изменений автоматизаций:", error);
+      }
       this._unsubscribeAutomations = undefined;
     }
   }
 
   private _subscribeToAutomationChanges(): void {
     if (!this.hass?.connection) return;
+
+    // Сначала отписываемся от предыдущей подписки, если она есть
+    if (this._unsubscribeAutomations) {
+      try {
+        this._unsubscribeAutomations();
+      } catch (e) {
+        // Игнорируем ошибки при отписке
+      }
+      this._unsubscribeAutomations = undefined;
+    }
 
     // Подписываемся на изменения состояний автоматизаций через WebSocket
     // Согласно документации: https://developers.home-assistant.io/docs/api/websocket
@@ -81,7 +94,12 @@ class VacuumScheduleCard extends LitElement {
           },
           "state_changed"
         );
-        this._unsubscribeAutomations = unsubscribe;
+        // Проверяем, что unsubscribe является функцией
+        if (typeof unsubscribe === "function") {
+          this._unsubscribeAutomations = unsubscribe;
+        } else {
+          console.warn("subscribeEvents не вернул функцию для отписки");
+        }
       }
     } catch (error) {
       console.warn("Не удалось подписаться на изменения автоматизаций:", error);
@@ -104,46 +122,51 @@ class VacuumScheduleCard extends LitElement {
     try {
       const automationsMap = new Map<string, Schedule>();
 
-      // Получаем все сущности через API как дополнительный источник
-      const apiEntities = await getAllEntitiesFromAPI(this.hass);
+      // Получаем все автоматизации через WebSocket API
+      // Это оптимальнее, чем перебирать hass.states, так как имена там транслитерируются
+      const allAutomations = await getAllAutomationsViaWebSocket(this.hass);
 
-      // Получаем автоматизации из hass.states и из API
-      const hassAutomationEntities = Object.keys(this.hass.states).filter((entityId) =>
-        entityId.startsWith("automation.")
-      );
+      console.log("Всего автоматизаций получено через WebSocket:", allAutomations.length);
 
-      // Получаем автоматизации из API
-      const apiAutomationEntities = apiEntities
-        ? Object.keys(apiEntities).filter((entityId) => entityId.startsWith("automation."))
-        : [];
-
-      // Объединяем списки, убирая дубликаты
-      const allAutomationEntities = Array.from(
-        new Set([...hassAutomationEntities, ...apiAutomationEntities])
-      );
-
-      console.log("Всего автоматизаций в hass.states:", hassAutomationEntities.length);
-      console.log("Всего автоматизаций в API:", apiAutomationEntities.length);
-      console.log("Всего уникальных автоматизаций:", allAutomationEntities.length);
-      console.log("Список всех автоматизаций:", allAutomationEntities);
-
-      // Получаем конфигурацию каждой автоматизации
-      for (const entityId of allAutomationEntities) {
+      // Обрабатываем каждую автоматизацию
+      for (const automationConfig of allAutomations) {
         try {
-          // Получаем состояние из hass.states или из API
-          const automationState = this.hass.states[entityId] || apiEntities?.[entityId] || null;
-          const automationEntityId = entityId.replace("automation.", "");
+          // Проверяем, относится ли автоматизация к расписаниям по id в конфигурации
+          // Не используем entity_id, так как он может быть транслитерирован
+          const configId = automationConfig.id || "";
+          if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
+            continue;
+          }
 
-          // Получаем конфигурацию автоматизации
-          const automationConfig = await getAutomationConfig(this.hass, automationEntityId);
-          if (!automationConfig) continue;
+          // Получаем состояние автоматизации из hass.states
+          // entity_id формируется из alias после транслитерации, поэтому ищем по атрибутам
+          let automationState = null;
+          
+          // Сначала пробуем найти по прямому соответствию id
+          const directEntityId = `automation.${configId}`;
+          if (this.hass.states[directEntityId]) {
+            automationState = this.hass.states[directEntityId];
+          } else {
+            // Если не нашли, перебираем все автоматизации и ищем по id в атрибутах
+            // или по совпадению структуры конфигурации
+            for (const entityId in this.hass.states) {
+              if (!entityId.startsWith("automation.")) continue;
+              
+              const state = this.hass.states[entityId];
+              // Проверяем, есть ли в атрибутах id, который совпадает с configId
+              if (state.attributes?.id === configId) {
+                automationState = state;
+                break;
+              }
+            }
+          }
 
           // Парсим расписание из автоматизации
           const parsed = parseScheduleFromAutomation(automationConfig, automationState);
           if (!parsed) continue;
 
           console.log(
-            `Найдена автоматизация расписания: entity_id=${entityId}, scheduleId=${parsed.scheduleId}, day=${parsed.day}`
+            `Найдена автоматизация расписания: id=${configId}, scheduleId=${parsed.scheduleId}, day=${parsed.day}`
           );
 
           // Получаем или создаем расписание
@@ -166,7 +189,10 @@ class VacuumScheduleCard extends LitElement {
           if (parsed.rooms.length > 0) {
             schedule.rooms = parsed.rooms;
           }
-          if (parsed.enabled) {
+          // enabled берем из состояния автоматизации, если оно доступно
+          if (automationState) {
+            schedule.enabled = automationState.state === "on";
+          } else if (parsed.enabled) {
             schedule.enabled = true;
           }
         } catch (e) {
@@ -175,7 +201,7 @@ class VacuumScheduleCard extends LitElement {
       }
 
       // Логируем результаты
-      console.log("Всего обработано автоматизаций:", allAutomationEntities.length);
+      console.log("Всего обработано автоматизаций:", allAutomations.length);
       console.log("Создано расписаний:", automationsMap.size);
 
       // Сортируем дни в каждом расписании
