@@ -995,9 +995,9 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      // Создаем автоматизацию через папку (каждая автоматизация в отдельном файле)
-      // Сначала проверяем, существует ли автоматизация
-      let response = await fetch(`/api/config/automation/config/${automationId}`, {
+      // Создаем/обновляем автоматизацию в файле (file-based)
+      // Получаем все автоматизации
+      let response = await fetch(`/api/config/automation/config`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1005,20 +1005,41 @@ class VacuumScheduleCard extends LitElement {
         },
       });
 
-      const method = response.ok ? "PUT" : "POST"; // Если существует - обновляем, иначе создаем
+      if (!response.ok) {
+        console.warn(`Не удалось получить список автоматизаций:`, response.status);
+        return;
+      }
+
+      let allAutomations: any[] = await response.json();
+      if (!Array.isArray(allAutomations)) {
+        console.warn("Автоматизации не в формате массива (file-based)");
+        return;
+      }
+
+      // Ищем существующую автоматизацию
+      const existingIndex = allAutomations.findIndex((a: any) => a.id === automationId);
       
-      response = await fetch(`/api/config/automation/config/${automationId}`, {
-        method: method,
+      if (existingIndex >= 0) {
+        // Обновляем существующую
+        allAutomations[existingIndex] = automation;
+      } else {
+        // Добавляем новую
+        allAutomations.push(automation);
+      }
+
+      // Отправляем обновленный массив обратно
+      response = await fetch(`/api/config/automation/config`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(automation),
+        body: JSON.stringify(allAutomations),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
+        console.warn(`Не удалось ${existingIndex >= 0 ? "обновить" : "создать"} автоматизацию ${automationId}:`, response.status, errorText);
       } else {
         // Перезагружаем автоматизации для обновления кеша
         try {
@@ -1046,14 +1067,38 @@ class VacuumScheduleCard extends LitElement {
         return;
       }
 
-      // Удаляем автоматизацию из папки
-      // Используем REST API согласно документации: https://developers.home-assistant.io/docs/api/rest/
-      const response = await fetch(`/api/config/automation/config/${automationId}`, {
-        method: "DELETE",
+      // Удаляем автоматизацию из файла (file-based)
+      // Получаем все автоматизации
+      let response = await fetch(`/api/config/automation/config`, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+      });
+
+      if (!response.ok) {
+        console.warn(`Не удалось получить список автоматизаций:`, response.status);
+        return;
+      }
+
+      let allAutomations: any[] = await response.json();
+      if (!Array.isArray(allAutomations)) {
+        console.warn("Автоматизации не в формате массива (file-based)");
+        return;
+      }
+
+      // Удаляем автоматизацию из массива
+      allAutomations = allAutomations.filter((a: any) => a.id !== automationId);
+
+      // Отправляем обновленный массив обратно
+      response = await fetch(`/api/config/automation/config`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(allAutomations),
       });
 
       if (!response.ok) {
