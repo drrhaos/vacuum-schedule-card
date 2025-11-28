@@ -127,11 +127,47 @@ class VacuumScheduleCard extends LitElement {
     this._loadRooms();
   }
 
+  private _unsubscribeAutomations?: () => void;
+
   connectedCallback(): void {
     super.connectedCallback();
     if (this.hass) {
       this._loadSchedules();
       this._loadRooms();
+      this._subscribeToAutomationChanges();
+    }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this._unsubscribeAutomations) {
+      this._unsubscribeAutomations();
+      this._unsubscribeAutomations = undefined;
+    }
+  }
+
+  private _subscribeToAutomationChanges(): void {
+    if (!this.hass?.connection) return;
+
+    // Подписываемся на изменения состояний автоматизаций через WebSocket
+    // Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+    try {
+      // Используем subscribeEvents через connection
+      if (typeof (this.hass.connection as any).subscribeEvents === "function") {
+        const unsubscribe = (this.hass.connection as any).subscribeEvents(
+          (event: any) => {
+            const entityId = event.event?.data?.entity_id;
+            if (entityId && entityId.startsWith("automation.vacuum_schedule_")) {
+              // Автоматизация изменилась, перезагружаем расписания
+              this._loadSchedules();
+            }
+          },
+          "state_changed"
+        );
+        this._unsubscribeAutomations = unsubscribe;
+      }
+    } catch (error) {
+      console.warn("Не удалось подписаться на изменения автоматизаций:", error);
     }
   }
 
@@ -243,9 +279,7 @@ class VacuumScheduleCard extends LitElement {
     try {
       const automationsMap = new Map<string, Schedule>();
       
-      // Получаем автоматизации из hass.states
-      const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
-      
+      // Получаем автоматизации из hass.states (WebSocket уже обновляет это в реальном времени)
       // Получаем все автоматизации из hass.states
       const allAutomationEntities = Object.keys(this.hass.states).filter(
         entityId => entityId.startsWith("automation.")
@@ -254,49 +288,69 @@ class VacuumScheduleCard extends LitElement {
       console.log("Всего автоматизаций в hass.states:", allAutomationEntities.length);
       console.log("Список всех автоматизаций:", allAutomationEntities);
       
-      // Получаем конфигурацию каждой автоматизации и проверяем, относится ли она к расписаниям
+      // Получаем конфигурацию каждой автоматизации через WebSocket API
+      // Согласно документации: https://developers.home-assistant.io/docs/api/websocket
       for (const entityId of allAutomationEntities) {
         try {
           const automationState = this.hass.states[entityId];
           const automationEntityId = entityId.replace("automation.", "");
           
-          // Получаем конфигурацию автоматизации через REST API
+          // Получаем конфигурацию автоматизации через WebSocket API
           let automationConfig: any = null;
-          if (token) {
+          
+          if (this.hass.connection && typeof (this.hass.connection as any).sendMessagePromise === "function") {
             try {
-              // Пробуем получить по entity_id (может быть на основе alias)
-              // Используем REST API согласно документации: https://developers.home-assistant.io/docs/api/rest/
-              let response = await fetch(`/api/config/automation/config/${automationEntityId}`, {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
+              // Используем WebSocket API для получения конфигурации автоматизации
+              const wsResult: any = await (this.hass.connection as any).sendMessagePromise({
+                type: "automation/get",
+                automation_id: automationEntityId,
               });
               
-              if (response.ok) {
-                automationConfig = await response.json();
-              } else if (response.status === 404) {
-                // Если 404, возможно entity_id не совпадает с id
-                // Проверяем атрибуты состояния на наличие признаков расписания
-                const attributes = automationState?.attributes || {};
-                const description = attributes.description || "";
-                const friendlyName = attributes.friendly_name || "";
-                
-                // Если в описании или имени есть признаки расписания, логируем для отладки
-                if (description.includes("расписания уборки") || description.includes("schedule") || 
-                    friendlyName.includes("Расписание уборки") || friendlyName.includes("schedule")) {
-                  console.log(`Автоматизация с признаками расписания (404): entity_id=${entityId}, description=${description}, friendly_name=${friendlyName}`);
+              if (wsResult?.success && wsResult.result) {
+                automationConfig = wsResult.result;
+              }
+            } catch (wsError: any) {
+              // Если WebSocket не поддерживает automation/get, пробуем REST API как fallback
+              if (wsError.code !== "unknown_command") {
+                console.warn(`WebSocket API не сработал для ${automationEntityId}:`, wsError);
+              }
+              
+              // Fallback на REST API
+              const token = this.hass.auth?.data?.access_token || this.hass.auth?.accessToken;
+              if (token) {
+                try {
+                  const response = await fetch(`/api/config/automation/config/${automationEntityId}`, {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      "Content-Type": "application/json",
+                    },
+                  });
+                  
+                  if (response.ok) {
+                    automationConfig = await response.json();
+                  } else if (response.status === 404) {
+                    // Если 404, возможно entity_id не совпадает с id
+                    const attributes = automationState?.attributes || {};
+                    const description = attributes.description || "";
+                    const friendlyName = attributes.friendly_name || "";
+                    
+                    if (description.includes("расписания уборки") || description.includes("schedule") || 
+                        friendlyName.includes("Расписание уборки") || friendlyName.includes("schedule")) {
+                      console.log(`Автоматизация с признаками расписания (404): entity_id=${entityId}, description=${description}, friendly_name=${friendlyName}`);
+                    }
+                    continue;
+                  } else {
+                    console.warn(`Ошибка получения конфигурации для ${automationEntityId}: ${response.status}`);
+                    continue;
+                  }
+                } catch (e) {
+                  console.warn(`Не удалось получить конфигурацию для ${automationEntityId}:`, e);
+                  continue;
                 }
-                continue;
               } else {
-                // Другие ошибки
-                console.warn(`Ошибка получения конфигурации для ${automationEntityId}: ${response.status}`);
                 continue;
               }
-            } catch (e) {
-              console.warn(`Не удалось получить конфигурацию для ${automationEntityId}:`, e);
-              continue;
             }
           } else {
             continue;
@@ -965,6 +1019,15 @@ class VacuumScheduleCard extends LitElement {
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`Не удалось ${method === "POST" ? "создать" : "обновить"} автоматизацию ${automationId}:`, response.status, errorText);
+      } else {
+        // Перезагружаем автоматизации для обновления кеша
+        try {
+          await this.hass.callService("automation", "reload");
+          // Небольшая задержка для применения изменений
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (reloadError) {
+          console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+        }
       }
     } catch (error) {
       console.warn(`Ошибка создания автоматизации ${automationId}:`, error);
@@ -995,6 +1058,15 @@ class VacuumScheduleCard extends LitElement {
 
       if (!response.ok) {
         console.warn(`Не удалось удалить автоматизацию ${automationId}:`, response.status);
+      } else {
+        // Перезагружаем автоматизации для обновления кеша
+        try {
+          await this.hass.callService("automation", "reload");
+          // Небольшая задержка для применения изменений
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (reloadError) {
+          console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+        }
       }
     } catch (error) {
       console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
@@ -1069,6 +1141,17 @@ class VacuumScheduleCard extends LitElement {
       
       // Создаем/обновляем автоматизации
       await this._updateAutomationsForSchedule(schedule, oldSchedule);
+      
+      // Перезагружаем автоматизации для обновления кеша
+      try {
+        await this.hass.callService("automation", "reload");
+        // Задержка для применения изменений в кеше
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (reloadError) {
+        console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+        // Все равно ждем, чтобы дать время API обновиться
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       
       // Перезагружаем расписания из автоматизаций для синхронизации
       await this._loadSchedules();

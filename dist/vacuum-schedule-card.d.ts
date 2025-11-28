@@ -16,7 +16,10 @@ declare class VacuumScheduleCard extends LitElement {
     private _config?;
     private _newSchedule;
     setConfig(config: VacuumScheduleCardConfig): void;
+    private _unsubscribeAutomations?;
     connectedCallback(): void;
+    disconnectedCallback(): void;
+    private _subscribeToAutomationChanges;
     private _loadRooms;
     private _loadSchedules;
     getCardSize(): number;
