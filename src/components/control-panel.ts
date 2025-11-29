@@ -18,19 +18,75 @@ export class ControlPanel extends LitElement {
   @property({ attribute: false }) public roomIcons: Record<number, string | { entity_id: string }> = {};
 
   @state() private _vacuumService?: VacuumService;
+  @state() private _currentCleaningRooms: number[] = [];
 
   connectedCallback(): void {
     super.connectedCallback();
     if (this.hass && this.entity) {
       this._vacuumService = new VacuumService(this.hass, this.entity);
+      this._updateCleaningRooms();
+      this._subscribeToStateChanges();
     }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._unsubscribeFromStateChanges();
   }
 
   updated(changedProperties: Map<string | number | symbol, unknown>): void {
     if (changedProperties.has("hass") || changedProperties.has("entity")) {
       if (this.hass && this.entity) {
         this._vacuumService = new VacuumService(this.hass, this.entity);
+        this._updateCleaningRooms();
+        this._subscribeToStateChanges();
       }
+    }
+  }
+
+  private _updateCleaningRooms(): void {
+    if (this._vacuumService) {
+      this._currentCleaningRooms = this._vacuumService.getCurrentCleaningRooms();
+      this.requestUpdate();
+    }
+  }
+
+  private _unsubscribeStateChanges?: () => void;
+
+  private _subscribeToStateChanges(): void {
+    this._unsubscribeFromStateChanges();
+    
+    if (!this.hass?.connection) return;
+
+    try {
+      if (typeof (this.hass.connection as any).subscribeEvents === "function") {
+        const unsubscribe = (this.hass.connection as any).subscribeEvents(
+          (event: any) => {
+            const entityId = event.event?.data?.entity_id;
+            if (entityId === this.entity) {
+              this._updateCleaningRooms();
+            }
+          },
+          "state_changed"
+        );
+        
+        if (typeof unsubscribe === "function") {
+          this._unsubscribeStateChanges = unsubscribe;
+        }
+      }
+    } catch (error) {
+      console.warn("[Vacuum Schedule Card] Ошибка подписки на изменения состояния пылесоса:", error);
+    }
+  }
+
+  private _unsubscribeFromStateChanges(): void {
+    if (this._unsubscribeStateChanges) {
+      try {
+        this._unsubscribeStateChanges();
+      } catch (error) {
+        // Игнорируем ошибки при отписке
+      }
+      this._unsubscribeStateChanges = undefined;
     }
   }
 
@@ -135,16 +191,36 @@ export class ControlPanel extends LitElement {
   }
 
   private _toggleRoom(roomId: number): void {
+    // Не позволяем изменять состояние комнат, которые сейчас убираются
+    if (this._currentCleaningRooms.includes(roomId)) {
+      return;
+    }
+
     const index = this.selectedRooms.indexOf(roomId);
     if (index > -1) {
+      this.selectedRooms.splice(index, 1);
       this.dispatchEvent(new CustomEvent("room-toggled", { detail: { roomId, selected: false } }));
     } else {
+      this.selectedRooms.push(roomId);
       this.dispatchEvent(new CustomEvent("room-toggled", { detail: { roomId, selected: true } }));
     }
+    this.requestUpdate();
   }
 
   private _toggleAllRooms(): void {
+    // Не позволяем изменять состояние во время уборки
+    if (this._currentCleaningRooms.length > 0) {
+      return;
+    }
+
+    const visibleRooms = this.rooms.filter(room => !this.hiddenRooms.includes(room.id));
+    if (this.selectedRooms.length === 0) {
+      this.selectedRooms = visibleRooms.map(r => r.id);
+    } else {
+      this.selectedRooms = [];
+    }
     this.dispatchEvent(new CustomEvent("all-rooms-toggled"));
+    this.requestUpdate();
   }
 
   render() {
@@ -204,9 +280,9 @@ export class ControlPanel extends LitElement {
         <div class="control-row rooms-row">
           ${visibleRooms.length > 0 ? html`
             <ha-card 
-              class="room-button ${this.selectedRooms.length === 0 ? "pressed" : ""}"
-              @click=${this._toggleAllRooms}
-              title="${this._t("all_rooms")}"
+              class="room-button ${this.selectedRooms.length === 0 && this._currentCleaningRooms.length === 0 ? "pressed" : ""} ${this._currentCleaningRooms.length > 0 ? "disabled" : ""}"
+              @click=${this._currentCleaningRooms.length > 0 ? undefined : this._toggleAllRooms}
+              title="${this._t("all_rooms")}${this._currentCleaningRooms.length > 0 ? " (идет уборка)" : ""}"
             >
               <div class="button-content">
                 <div class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</div>
@@ -214,20 +290,27 @@ export class ControlPanel extends LitElement {
               </div>
               <ha-ripple></ha-ripple>
             </ha-card>
-            ${visibleRooms.map((room) => html`
-              <ha-card 
-                class="room-button ${this.selectedRooms.includes(room.id) ? "pressed" : ""}"
-                @click=${() => this._toggleRoom(room.id)}
-                title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}"
-              >
-                <div class="button-content">
-                  <div class="button-icon">${this._renderRoomIcon(room)}</div>
-                  <div class="button-label">${room.name}</div>
-                  ${this.showRoomIds ? html`<div class="button-id">ID: ${room.id}</div>` : ""}
-                </div>
-                <ha-ripple></ha-ripple>
-              </ha-card>
-            `)}
+            ${visibleRooms.map((room) => {
+              const isCleaning = this._currentCleaningRooms.includes(room.id);
+              const isSelected = this.selectedRooms.includes(room.id);
+              const isPressed = isCleaning || isSelected;
+              const isDisabled = isCleaning;
+              
+              return html`
+                <ha-card 
+                  class="room-button ${isPressed ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
+                  @click=${isDisabled ? undefined : () => this._toggleRoom(room.id)}
+                  title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}${isCleaning ? " (убирается)" : ""}"
+                >
+                  <div class="button-content">
+                    <div class="button-icon">${this._renderRoomIcon(room)}</div>
+                    <div class="button-label">${room.name}</div>
+                    ${this.showRoomIds ? html`<div class="button-id">ID: ${room.id}</div>` : ""}
+                  </div>
+                  <ha-ripple></ha-ripple>
+                </ha-card>
+              `;
+            })}
           ` : html`<div class="content" style="width: 100%; text-align: center; padding: 8px;">${this._t("rooms_not_found")}</div>`}
         </div>
       </div>
@@ -373,6 +456,14 @@ export class ControlPanel extends LitElement {
       }
       .room-button.pressed {
         background: var(--primary-color, var(--mdc-theme-primary)) !important;
+      }
+      .room-button.disabled {
+        pointer-events: none;
+        cursor: default;
+        opacity: 0.8;
+      }
+      .room-button.disabled.pressed {
+        opacity: 1;
       }
       .room-button.pressed .button-icon {
         color: var(--text-primary-color, var(--mdc-theme-on-primary));

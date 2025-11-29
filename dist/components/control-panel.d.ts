@@ -12,8 +12,14 @@ export declare class ControlPanel extends LitElement {
         entity_id: string;
     }>;
     private _vacuumService?;
+    private _currentCleaningRooms;
     connectedCallback(): void;
+    disconnectedCallback(): void;
     updated(changedProperties: Map<string | number | symbol, unknown>): void;
+    private _updateCleaningRooms;
+    private _unsubscribeStateChanges?;
+    private _subscribeToStateChanges;
+    private _unsubscribeFromStateChanges;
     private _t;
     private _getVacuumState;
     private _isButtonDisabled;

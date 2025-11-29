@@ -16,4 +16,9 @@ export declare class VacuumService implements VacuumControl {
     getState(): string;
     isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return", vacuumState: string): boolean;
     getStateLabel(state: string): string;
+    /**
+     * Получает список ID комнат, которые сейчас убираются
+     * Проверяет различные возможные атрибуты пылесоса
+     */
+    getCurrentCleaningRooms(): number[];
 }

@@ -77,5 +77,51 @@ export class VacuumService implements VacuumControl {
     };
     return labels[state] || state;
   }
+
+  /**
+   * Получает список ID комнат, которые сейчас убираются
+   * Проверяет различные возможные атрибуты пылесоса
+   */
+  getCurrentCleaningRooms(): number[] {
+    const state = this.hass.states[this.entity];
+    if (!state || !state.attributes) {
+      return [];
+    }
+
+    const attrs = state.attributes;
+
+    // Проверяем различные возможные атрибуты
+    // 1. current_segments (массив ID сегментов)
+    if (Array.isArray(attrs.current_segments)) {
+      return attrs.current_segments.filter((id: any) => typeof id === "number");
+    }
+
+    // 2. current_segment (одиночный ID)
+    if (typeof attrs.current_segment === "number") {
+      return [attrs.current_segment];
+    }
+
+    // 3. cleaning_segments
+    if (Array.isArray(attrs.cleaning_segments)) {
+      return attrs.cleaning_segments.filter((id: any) => typeof id === "number");
+    }
+
+    // 4. active_segments
+    if (Array.isArray(attrs.active_segments)) {
+      return attrs.active_segments.filter((id: any) => typeof id === "number");
+    }
+
+    // 5. segment (старое название)
+    if (typeof attrs.segment === "number") {
+      return [attrs.segment];
+    }
+
+    // 6. segments (массив)
+    if (Array.isArray(attrs.segments)) {
+      return attrs.segments.filter((id: any) => typeof id === "number");
+    }
+
+    return [];
+  }
 }
 
