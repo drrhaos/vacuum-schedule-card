@@ -107,9 +107,85 @@ export class ControlPanel extends LitElement {
     return this._vacuumService.getPylesosState();
   }
 
-  private _getStateEntityName(): string {
-    // Извлекаем имя сущности из entity (убираем префикс "vacuum.")
-    return this.entity.replace(/^vacuum\./, "");
+  private _getPylesosStateLabel(): string {
+    const pylesosState = this._getPylesosState();
+    if (!pylesosState) return "";
+    
+    // Маппинг статусов (как английских, так и переведенных Home Assistant) на ключи переводов
+    // Основано на переводах из dreame-vacuum интеграции
+    const statusMap: Record<string, string> = {
+      // Английские оригинальные статусы (из dreame-vacuum)
+      "idle": "idle",
+      "cleaning": "cleaning",
+      "paused": "paused",
+      "returning": "returning",
+      "returning to dock": "returning",
+      "returning to base": "returning",
+      "charging": "charging",
+      "docked": "docked",
+      "error": "error",
+      "standby": "standby",
+      "spot cleaning": "spot_cleaning",
+      "zone cleaning": "zone_cleaning",
+      "manual control": "manual_control",
+      "going home": "going_home",
+      "completing": "completing",
+      "drying": "drying",
+      "rinsing mop": "rinsing_mop",
+      "auto cleaning": "auto_cleaning",
+      "dry and wet cleaning": "dry_and_wet_cleaning",
+      "cleaning and adding water": "cleaning_and_adding_water",
+      "charging completed": "charging_completed",
+      "returning for mop rinsing": "returning_for_mop_rinsing",
+      "washing paused": "washing_paused",
+      // Русские статусы (переведенные Home Assistant из dreame-vacuum)
+      "ожидание": "idle",
+      "уборка": "cleaning",
+      "пауза": "paused",
+      "возврат": "returning",
+      "возвращение на базу": "returning",
+      "зарядка": "charging",
+      "на базе": "docked",
+      "ошибка": "error",
+      "точечная уборка": "spot_cleaning",
+      "уборка зоны": "zone_cleaning",
+      "ручное управление": "manual_control",
+      "завершение": "completing",
+      "сушка": "drying",
+      "полоскание швабры": "rinsing_mop",
+      "автоочистка": "auto_cleaning",
+      "сухая и влажная уборка": "dry_and_wet_cleaning",
+      "очистка и добавление воды": "cleaning_and_adding_water",
+      "зарядка завершена": "charging_completed",
+      "возвращение для полоскания швабры": "returning_for_mop_rinsing",
+      "стирка приостановлена": "washing_paused",
+    };
+    
+    const stateLower = pylesosState.toLowerCase().trim();
+    let translationKey: string;
+    
+    // Проверяем маппинг для известных статусов
+    if (statusMap[stateLower]) {
+      translationKey = `state_${statusMap[stateLower]}`;
+    } else {
+      // Для неизвестных статусов нормализуем ключ (убираем пробелы, спецсимволы)
+      translationKey = `state_${stateLower.replace(/\s+/g, "_").replace(/[^a-zа-я0-9_]/g, "").replace(/[а-я]/g, (char) => {
+        // Простая транслитерация для кириллицы
+        const translit: Record<string, string> = {
+          "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo",
+          "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+          "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+          "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+          "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"
+        };
+        return translit[char] || "";
+      })}`;
+    }
+    
+    const translated = this._t(translationKey);
+    // Если перевод найден и он отличается от ключа, возвращаем перевод
+    // Иначе возвращаем оригинальное значение
+    return translated && translated !== translationKey ? translated : pylesosState;
   }
 
   private _getError(): string | undefined {
@@ -245,10 +321,7 @@ export class ControlPanel extends LitElement {
         <div class="control-panel-status">
           <span class="status-icon ${vacuumState === "cleaning" ? "cleaning" : ""}">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
           <div class="status-info">
-            <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
-            ${this._getPylesosState() ? html`
-              <span class="status-pylesos">${this._getStateEntityName()}_state: <strong>${this._getPylesosState()}</strong></span>
-            ` : ""}
+            <span class="status-text">Статус: <strong>${this._getStateLabel()}${this._getPylesosState() ? `, ${this._getPylesosStateLabel()}` : ""}</strong></span>
             ${this._getError() ? html`
               <span class="status-error">${this._getError()}</span>
             ` : ""}
@@ -395,14 +468,6 @@ export class ControlPanel extends LitElement {
       .status-text {
         display: inline-flex;
         align-items: center;
-      }
-      .status-pylesos {
-        display: inline-flex;
-        align-items: center;
-        color: var(--secondary-text-color);
-        font-size: 11px;
-        font-weight: 500;
-        margin-top: 2px;
       }
       .status-error {
         display: inline-flex;
