@@ -144,28 +144,44 @@ class VacuumScheduleCard extends LitElement {
       // Это оптимальнее, чем перебирать hass.states, так как имена там транслитерируются
       const allAutomations = await getAllAutomations(this.hass);
 
-      console.log("Всего автоматизаций получено:", allAutomations.length);
+      console.log(`[Vacuum Schedule Card] ✅ Автоматизации успешно получены: ${allAutomations.length} шт.`);
+      console.log(`[Vacuum Schedule Card] Начинаем фильтрацию автоматизаций по ID...`);
 
       // Обрабатываем каждую автоматизацию
+      // ВАЖНО: Фильтрация происходит строго по ID (config.id), а не по entity_id
+      // Это необходимо, так как entity_id может быть транслитерирован в Home Assistant
+      let filteredCount = 0;
       for (const automationConfig of allAutomations) {
         try {
-          // Проверяем, относится ли автоматизация к расписаниям по id в конфигурации
-          // Не используем entity_id, так как он может быть транслитерирован
+          // Получаем ID автоматизации из конфигурации
+          // ВАЖНО: Используем только config.id для фильтрации, не entity_id!
           const configId = automationConfig.id || "";
           
-          // Логируем для отладки
+          if (!configId) {
+            // Пропускаем автоматизации без ID
+            continue;
+          }
+          
+          // Логируем для отладки автоматизации, относящиеся к расписаниям
           if (configId.includes("vacuum_schedule")) {
-            console.log("Найдена потенциальная автоматизация расписания:", {
+            console.log(`[Vacuum Schedule Card] 🔍 Найдена потенциальная автоматизация расписания (по ID):`, {
               id: configId,
               hasTrigger: !!automationConfig.trigger,
               hasAction: !!automationConfig.action,
-              config: automationConfig,
             });
           }
           
+          // ФИЛЬТРАЦИЯ ПО ID:
+          // Автоматизация должна иметь ID, который:
+          // 1. Начинается с "vacuum_schedule_"
+          // 2. Содержит "_day_" (указывает на день недели)
+          // Формат ID: vacuum_schedule_{scheduleId}_day_{day}
           if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
-            continue;
+            continue; // Пропускаем автоматизации, не соответствующие фильтру по ID
           }
+          
+          filteredCount++;
+          console.log(`[Vacuum Schedule Card] ✅ Автоматизация прошла фильтр по ID: ${configId}`);
 
           // Получаем состояние автоматизации из hass.states
           // entity_id формируется из alias после транслитерации, поэтому ищем по атрибутам
@@ -192,10 +208,13 @@ class VacuumScheduleCard extends LitElement {
 
           // Парсим расписание из автоматизации
           const parsed = parseScheduleFromAutomation(automationConfig, automationState);
-          if (!parsed) continue;
+          if (!parsed) {
+            console.warn(`[Vacuum Schedule Card] ⚠️ Не удалось распарсить автоматизацию с ID: ${configId}`);
+            continue;
+          }
 
           console.log(
-            `Найдена автоматизация расписания: id=${configId}, scheduleId=${parsed.scheduleId}, day=${parsed.day}`
+            `[Vacuum Schedule Card] ✅ Найдена автоматизация расписания (отфильтрована по ID): id=${configId}, scheduleId=${parsed.scheduleId}, day=${parsed.day}`
           );
 
           // Получаем или создаем расписание
@@ -224,14 +243,39 @@ class VacuumScheduleCard extends LitElement {
           } else if (parsed.enabled) {
             schedule.enabled = true;
           }
-        } catch (e) {
-          console.warn("Ошибка обработки автоматизации:", e);
+        } catch (e: any) {
+          const errorId = automationConfig?.id || automationConfig?._entity_id || "неизвестно";
+          console.error(`[Vacuum Schedule Card] ❌ Ошибка обработки автоматизации ${errorId}:`, e);
+          console.error(`[Vacuum Schedule Card] Детали автоматизации:`, {
+            id: automationConfig?.id,
+            entity_id: automationConfig?._entity_id,
+            hasTrigger: !!automationConfig?.trigger,
+            hasAction: !!automationConfig?.action,
+            trigger: automationConfig?.trigger,
+            action: automationConfig?.action,
+          });
+          // Продолжаем обработку других автоматизаций, не прерывая весь процесс
         }
       }
 
-      // Логируем результаты
-      console.log("Всего обработано автоматизаций:", allAutomations.length);
-      console.log("Создано расписаний:", automationsMap.size);
+      // Логируем результаты фильтрации по ID
+      console.log(`[Vacuum Schedule Card] ✅ Фильтрация завершена:`);
+      console.log(`  - Всего получено автоматизаций: ${allAutomations.length}`);
+      console.log(`  - Отфильтровано по ID (vacuum_schedule_*_day_*): ${filteredCount}`);
+      console.log(`  - Создано расписаний: ${automationsMap.size}`);
+      
+      // Подробное логирование найденных расписаний
+      if (automationsMap.size > 0) {
+        console.group("[Vacuum Schedule Card] Найденные расписания:");
+        automationsMap.forEach((schedule, scheduleId) => {
+          console.log(`Расписание ${scheduleId}:`);
+          console.log(`  - Время: ${schedule.time}`);
+          console.log(`  - Дни: ${schedule.days.join(", ")}`);
+          console.log(`  - Комнаты: ${schedule.rooms.length > 0 ? schedule.rooms.join(", ") : "все"}`);
+          console.log(`  - Включено: ${schedule.enabled ? "да" : "нет"}`);
+        });
+        console.groupEnd();
+      }
 
       // Сортируем дни в каждом расписании
       for (const schedule of automationsMap.values()) {
