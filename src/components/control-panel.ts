@@ -141,11 +141,13 @@ export class ControlPanel extends LitElement {
         console.log(`[Vacuum Schedule Card] Блокировка кнопок: task_status="${taskStatus}" (${taskStatusLower})`);
         return true;
       } else {
+        // Если статус в списке активных (unknown, completed), кнопки активны - не блокируем
         console.log(`[Vacuum Schedule Card] Кнопки активны: task_status="${taskStatus}" (${taskStatusLower})`);
+        return false;
       }
     }
     
-    // Fallback: проверяем основной статус пылесоса и список убираемых комнат
+    // Fallback: если task_status не определен, проверяем основной статус пылесоса и список убираемых комнат
     const state = this._getVacuumState();
     const isCleaningByState = state === "cleaning" || this._currentCleaningRooms.length > 0;
     if (isCleaningByState) {
