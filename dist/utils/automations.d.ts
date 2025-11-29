@@ -1,5 +1,9 @@
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
+/**
+ * Перезагружает автоматизации в Home Assistant
+ */
+export declare function reloadAutomations(hass: HomeAssistant): Promise<void>;
 export declare function getScheduleAutomations(hass: HomeAssistant): Promise<any[]>;
 export declare function getAutomationConfig(hass: HomeAssistant, automationId: string): Promise<any | null>;
 /**

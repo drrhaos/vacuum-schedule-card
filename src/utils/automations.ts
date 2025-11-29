@@ -8,7 +8,7 @@ import {
 /**
  * Перезагружает автоматизации в Home Assistant
  */
-async function reloadAutomations(hass: HomeAssistant): Promise<void> {
+export async function reloadAutomations(hass: HomeAssistant): Promise<void> {
   try {
     await hass.callService("automation", "reload");
     await new Promise((resolve) => setTimeout(resolve, 500));

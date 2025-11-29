@@ -7,4 +7,8 @@ example*
 # Keep dist folder for releases
 !dist/
 !dist/vacuum-schedule-card.js
+# Dev files
+dev.html
+rollup.config.dev.mjs
+.dev-config.json
 

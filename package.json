@@ -5,7 +5,12 @@
   "main": "vacuum-schedule-card.js",
   "scripts": {
     "build": "rollup -c",
-    "watch": "rollup -c --watch"
+    "build:dev": "rollup -c rollup.config.dev.mjs",
+    "watch": "rollup -c --watch",
+    "watch:dev": "rollup -c rollup.config.dev.mjs --watch",
+    "dev": "npm run watch:dev & npm run serve",
+    "serve": "python3 -m http.server 8080 || python -m http.server 8080 || npx http-server -p 8080 -c-1",
+    "preview": "npm run build:dev && npm run serve"
   },
   "keywords": [
     "home-assistant",
