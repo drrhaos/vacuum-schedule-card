@@ -293,8 +293,8 @@ export class ControlPanel extends LitElement {
         max-width: 100%;
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
         --mdc-button-container-shape: var(--ha-card-border-radius, 4px);
-        --mdc-button-outline-width: 1px;
-        --mdc-button-outline-color: var(--divider-color, var(--ha-card-border-color));
+        --mdc-button-outline-width: 0 !important;
+        --mdc-button-outline-color: transparent !important;
         --mdc-ripple-color: transparent;
         --ha-ripple-color: var(--primary-color, var(--mdc-theme-primary));
         --ha-ripple-hover-color: var(--ha-ripple-color);
@@ -307,14 +307,14 @@ export class ControlPanel extends LitElement {
         border-radius: var(--ha-card-border-radius, 4px) !important;
         background: var(--card-background-color, var(--ha-card-background)) !important;
         box-shadow: none !important;
-        padding: 16px 12px !important;
+        padding: 0 !important;
         margin: 4px;
         cursor: pointer;
         overflow: hidden;
         box-sizing: border-box;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: stretch;
+        justify-content: stretch;
         min-height: 80px;
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
@@ -327,14 +327,15 @@ export class ControlPanel extends LitElement {
       }
       .room-button::part(button),
       .room-button::part(native-button) {
-        background: var(--card-background-color, var(--ha-card-background)) !important;
-        border: 1px solid var(--divider-color, var(--ha-card-border-color)) !important;
+        background: transparent !important;
+        border: none !important;
         box-shadow: none !important;
-        border-radius: var(--ha-card-border-radius, 4px) !important;
+        border-radius: 0 !important;
         width: 100% !important;
         height: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
+        outline: none !important;
       }
       .room-button .button-content {
         display: flex;
@@ -394,15 +395,15 @@ export class ControlPanel extends LitElement {
       }
       .room-button.pressed {
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
-        --mdc-button-outline-color: var(--primary-color, var(--mdc-theme-primary));
+        --mdc-button-outline-color: transparent !important;
         background: var(--primary-color, var(--mdc-theme-primary)) !important;
         border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
         box-shadow: none !important;
       }
       .room-button.pressed::part(button),
       .room-button.pressed::part(native-button) {
-        background: var(--primary-color, var(--mdc-theme-primary)) !important;
-        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        background: transparent !important;
+        border: none !important;
         box-shadow: none !important;
       }
       .room-button.pressed .button-icon {
