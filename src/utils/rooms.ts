@@ -91,23 +91,30 @@ export async function loadRooms(
               name: nameState.state,
             };
 
-            // Проверяем, есть ли переопределение иконки в конфигурации
+            // Сначала пытаемся получить иконку из самой select-сущности (select.pylesos_room_1_name)
+            const iconFromSelectEntity = await getEntityIcon(hass, roomNameEntity);
+            if (iconFromSelectEntity) {
+              room.icon = iconFromSelectEntity;
+              room.entity_id = roomNameEntity;
+            }
+
+            // Проверяем, есть ли переопределение иконки в конфигурации (имеет приоритет)
             if (roomIcons && roomIcons[roomId]) {
               const iconConfig = roomIcons[roomId];
               if (typeof iconConfig === "string") {
-                // Прямая иконка (emoji или mdi:icon)
+                // Прямая иконка (emoji или mdi:icon) - переопределяет иконку из entity
                 room.icon = iconConfig;
               } else if (iconConfig.entity_id) {
-                // Иконка из entity
+                // Иконка из указанного entity - переопределяет иконку из select-сущности
                 room.entity_id = iconConfig.entity_id;
                 const icon = await getEntityIcon(hass, iconConfig.entity_id);
                 if (icon) {
                   room.icon = icon;
                 }
               }
-            } else {
-              // Пытаемся найти entity для комнаты и получить иконку
-              // Ищем entity по паттерну: {domain}.{room_name} или zone.{room_name}
+            } else if (!room.icon) {
+              // Если иконка не найдена в select-сущности и нет переопределения,
+              // пытаемся найти entity для комнаты по имени
               const roomNameLower = nameState.state.toLowerCase().replace(/\s+/g, "_");
               const possibleEntities = [
                 `zone.${roomNameLower}`,
