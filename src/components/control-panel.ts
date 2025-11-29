@@ -110,6 +110,11 @@ export class ControlPanel extends LitElement {
     return this._vacuumService.getStateLabel(state);
   }
 
+  private _getError(): string | undefined {
+    if (!this._vacuumService) return undefined;
+    return this._vacuumService.getError();
+  }
+
   private _renderRoomIcon(room: Room) {
     if (room.id === 0) {
       // Для кнопки "Все комнаты" используем mdi:home
@@ -237,7 +242,12 @@ export class ControlPanel extends LitElement {
       <div class="control-panel">
         <div class="control-panel-status">
           <span class="status-icon">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
-          <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
+          <div class="status-info">
+            <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
+            ${this._getError() ? html`
+              <span class="status-error">${this._getError()}</span>
+            ` : ""}
+          </div>
         </div>
         <div class="control-row">
           ${!isStartDisabled ? html`
@@ -329,7 +339,7 @@ export class ControlPanel extends LitElement {
         margin-bottom: 12px;
         line-height: 1.4;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: flex-start;
         gap: 8px;
       }
@@ -345,9 +355,27 @@ export class ControlPanel extends LitElement {
         width: 100%;
         height: 100%;
       }
+      .status-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+      }
       .status-text {
         display: inline-flex;
         align-items: center;
+      }
+      .status-error {
+        display: inline-flex;
+        align-items: center;
+        color: var(--error-color, var(--state-error-color));
+        font-size: 11px;
+        font-weight: 500;
+        padding: 4px 8px;
+        background: var(--error-background-color, rgba(var(--rgb-error-color), 0.1));
+        border-radius: var(--ha-card-border-radius, 4px);
+        margin-top: 4px;
+        word-break: break-word;
       }
       .control-row {
         display: flex;

@@ -24,6 +24,7 @@ export declare class ControlPanel extends LitElement {
     private _getVacuumState;
     private _isButtonDisabled;
     private _getStateLabel;
+    private _getError;
     private _renderRoomIcon;
     private _handleStart;
     private _handleStop;

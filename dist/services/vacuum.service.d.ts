@@ -17,6 +17,10 @@ export declare class VacuumService implements VacuumControl {
     isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return", vacuumState: string): boolean;
     getStateLabel(state: string): string;
     /**
+     * Получает сообщение об ошибке из атрибутов пылесоса
+     */
+    getError(): string | undefined;
+    /**
      * Получает список ID комнат, которые сейчас убираются
      * Проверяет различные возможные атрибуты пылесоса
      */

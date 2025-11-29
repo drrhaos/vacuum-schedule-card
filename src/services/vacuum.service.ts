@@ -79,6 +79,38 @@ export class VacuumService implements VacuumControl {
   }
 
   /**
+   * Получает сообщение об ошибке из атрибутов пылесоса
+   */
+  getError(): string | undefined {
+    const state = this.hass.states[this.entity];
+    if (!state || !state.attributes) {
+      return undefined;
+    }
+
+    const attrs = state.attributes;
+
+    // Проверяем различные возможные атрибуты ошибки
+    if (attrs.error) {
+      return typeof attrs.error === "string" ? attrs.error : String(attrs.error);
+    }
+
+    if (attrs.error_message) {
+      return typeof attrs.error_message === "string" ? attrs.error_message : String(attrs.error_message);
+    }
+
+    if (attrs.status === "error" && attrs.message) {
+      return typeof attrs.message === "string" ? attrs.message : String(attrs.message);
+    }
+
+    // Если состояние "error", но нет конкретного сообщения
+    if (state.state === "error") {
+      return attrs.friendly_name ? `Ошибка: ${attrs.friendly_name}` : "Ошибка";
+    }
+
+    return undefined;
+  }
+
+  /**
    * Получает список ID комнат, которые сейчас убираются
    * Проверяет различные возможные атрибуты пылесоса
    */
