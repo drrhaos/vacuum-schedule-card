@@ -267,6 +267,7 @@ class VacuumScheduleCard extends LitElement {
           .entity=${this.entity}
           .rooms=${this._rooms}
           .selectedRooms=${this._selectedRoomsForControl}
+          .hiddenRooms=${this._config?.hidden_rooms || []}
           .showRoomIds=${this._config?.show_room_ids || false}
           .roomIcons=${this._config?.room_icons || {}}
           @room-toggled=${this._handleRoomToggled}
@@ -275,7 +276,7 @@ class VacuumScheduleCard extends LitElement {
         ></vacuum-control-panel>
         
         <div class="header">
-          <span>${this._t("schedule_title")}</span>
+          <span>${this._config?.title || this._t("schedule_title")}</span>
           <span>${this._schedules.length} ${this._t("schedules_count")}</span>
         </div>
           
@@ -303,6 +304,7 @@ class VacuumScheduleCard extends LitElement {
         .open=${this._showAddDialog}
         .schedule=${this._editingSchedule}
         .rooms=${this._rooms}
+        .hiddenRooms=${this._config?.hidden_rooms || []}
         .error=${this._error}
         @schedule-save=${this._handleScheduleSave}
         @dialog-close=${this._handleDialogClose}
@@ -330,6 +332,8 @@ class VacuumScheduleCard extends LitElement {
     return {
       entity: "vacuum.example",
       type: "custom:vacuum-schedule-card",
+      title: undefined,
+      hidden_rooms: [],
       show_room_ids: false,
       room_icons: {},
     };
@@ -347,16 +351,29 @@ class VacuumScheduleCard extends LitElement {
             },
           },
         },
+        {
+          name: "title",
+          required: false,
+          selector: {
+            text: {},
+          },
+        },
       ],
       computeLabel: (schema: any) => {
         if (schema.name === "entity") {
           return "Vacuum Entity";
+        }
+        if (schema.name === "title") {
+          return "Card Title";
         }
         return undefined;
       },
       computeHelper: (schema: any) => {
         if (schema.name === "entity") {
           return "Select the vacuum entity to manage schedules for";
+        }
+        if (schema.name === "title") {
+          return "Custom title for the card (optional). If not specified, default title will be used.";
         }
         return undefined;
       },

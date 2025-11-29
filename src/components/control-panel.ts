@@ -13,6 +13,7 @@ export class ControlPanel extends LitElement {
   @property() public entity!: string;
   @property({ attribute: false }) public rooms: Room[] = [];
   @property({ attribute: false }) public selectedRooms: number[] = [];
+  @property({ attribute: false }) public hiddenRooms: number[] = [];
   @property() public showRoomIds = false;
   @property({ attribute: false }) public roomIcons: Record<number, string> = {};
 
@@ -124,6 +125,9 @@ export class ControlPanel extends LitElement {
     const isPauseDisabled = this._isButtonDisabled("pause");
     const isReturnDisabled = this._isButtonDisabled("return");
 
+    // Фильтруем комнаты, скрывая те, что в hiddenRooms
+    const visibleRooms = this.rooms.filter(room => !this.hiddenRooms.includes(room.id));
+
     return html`
       <div class="control-panel">
         <div class="control-panel-status">
@@ -169,7 +173,7 @@ export class ControlPanel extends LitElement {
           ` : ""}
         </div>
         <div class="control-row rooms-row">
-          ${this.rooms.length > 0 ? html`
+          ${visibleRooms.length > 0 ? html`
             <ha-button 
               class="room-button ${this.selectedRooms.length === 0 ? "pressed" : ""}"
               @click=${this._toggleAllRooms}
@@ -180,7 +184,7 @@ export class ControlPanel extends LitElement {
                 <span class="button-label">${this._t("all_rooms")}</span>
               </span>
             </ha-button>
-            ${this.rooms.map((room) => html`
+            ${visibleRooms.map((room) => html`
               <ha-button 
                 class="room-button ${this.selectedRooms.includes(room.id) ? "pressed" : ""}"
                 @click=${() => this._toggleRoom(room.id)}

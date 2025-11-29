@@ -6,6 +6,7 @@ export declare class ControlPanel extends LitElement {
     entity: string;
     rooms: Room[];
     selectedRooms: number[];
+    hiddenRooms: number[];
     showRoomIds: boolean;
     roomIcons: Record<number, string>;
     private _vacuumService?;

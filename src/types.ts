@@ -1,6 +1,8 @@
 export interface VacuumScheduleCardConfig {
   entity: string;
   type: string;
+  title?: string; // Кастомный заголовок карточки
+  hidden_rooms?: number[]; // Список ID комнат, которые нужно скрыть из выбора
   show_room_ids?: boolean; // Показывать ID комнат на кнопках
   room_icons?: Record<number, string>; // Иконки для комнат по ID: { 16: "🛋️", 17: "🛏️" }
 }

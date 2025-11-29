@@ -46,17 +46,25 @@ declare class VacuumScheduleCard extends LitElement {
     };
     static getStubConfig(): VacuumScheduleCardConfig;
     static getConfigForm(): {
-        schema: {
+        schema: ({
             name: string;
             required: boolean;
             selector: {
                 entity: {
                     domain: string;
                 };
+                text?: undefined;
             };
-        }[];
-        computeLabel: (schema: any) => "Vacuum Entity" | undefined;
-        computeHelper: (schema: any) => "Select the vacuum entity to manage schedules for" | undefined;
+        } | {
+            name: string;
+            required: boolean;
+            selector: {
+                text: {};
+                entity?: undefined;
+            };
+        })[];
+        computeLabel: (schema: any) => "Vacuum Entity" | "Card Title" | undefined;
+        computeHelper: (schema: any) => "Select the vacuum entity to manage schedules for" | "Custom title for the card (optional). If not specified, default title will be used." | undefined;
     };
     static get styles(): import("lit").CSSResult;
 }
