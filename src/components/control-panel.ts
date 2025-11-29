@@ -203,28 +203,30 @@ export class ControlPanel extends LitElement {
         </div>
         <div class="control-row rooms-row">
           ${visibleRooms.length > 0 ? html`
-            <ha-button 
+            <ha-card 
               class="room-button ${this.selectedRooms.length === 0 ? "pressed" : ""}"
               @click=${this._toggleAllRooms}
               title="${this._t("all_rooms")}"
             >
-              <span class="button-content">
-                <span class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</span>
-                <span class="button-label">${this._t("all_rooms")}</span>
-              </span>
-            </ha-button>
+              <div class="button-content">
+                <div class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</div>
+                <div class="button-label">${this._t("all_rooms")}</div>
+              </div>
+              <ha-ripple></ha-ripple>
+            </ha-card>
             ${visibleRooms.map((room) => html`
-              <ha-button 
+              <ha-card 
                 class="room-button ${this.selectedRooms.includes(room.id) ? "pressed" : ""}"
                 @click=${() => this._toggleRoom(room.id)}
                 title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}"
               >
-                <span class="button-content">
-                  <span class="button-icon">${this._renderRoomIcon(room)}</span>
-                  <span class="button-label">${room.name}</span>
-                  ${this.showRoomIds ? html`<span class="button-id">${room.id}</span>` : ""}
-                </span>
-              </ha-button>
+                <div class="button-content">
+                  <div class="button-icon">${this._renderRoomIcon(room)}</div>
+                  <div class="button-label">${room.name}</div>
+                  ${this.showRoomIds ? html`<div class="button-id">ID: ${room.id}</div>` : ""}
+                </div>
+                <ha-ripple></ha-ripple>
+              </ha-card>
             `)}
           ` : html`<div class="content" style="width: 100%; text-align: center; padding: 8px;">${this._t("rooms_not_found")}</div>`}
         </div>
@@ -291,32 +293,22 @@ export class ControlPanel extends LitElement {
         flex: 1;
         min-width: 100px;
         max-width: 100%;
-        --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
-        --mdc-button-container-shape: var(--ha-card-border-radius, 4px);
-        --mdc-button-outline-width: 0 !important;
-        --mdc-button-outline-color: transparent !important;
-        --mdc-ripple-color: transparent;
         --ha-ripple-color: var(--primary-color, var(--mdc-theme-primary));
         --ha-ripple-hover-color: var(--ha-ripple-color);
         --ha-ripple-pressed-color: var(--ha-ripple-color);
         --ha-ripple-hover-opacity: 0.04;
         --ha-ripple-pressed-opacity: 0.12;
         position: relative;
-        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-        border: 1px solid var(--divider-color, var(--ha-card-border-color)) !important;
-        border-radius: var(--ha-card-border-radius, 4px) !important;
-        background: var(--card-background-color, var(--ha-card-background)) !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 4px;
         cursor: pointer;
         overflow: hidden;
         box-sizing: border-box;
         display: flex;
-        align-items: stretch;
-        justify-content: stretch;
+        justify-content: center;
+        align-items: center;
+        line-height: normal;
         min-height: 80px;
-        -webkit-tap-highlight-color: transparent;
+        padding: 16px 12px;
+        margin: 4px;
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         -khtml-user-select: none;
@@ -325,31 +317,17 @@ export class ControlPanel extends LitElement {
         user-select: none;
         touch-action: manipulation;
       }
-      .room-button::part(button),
-      .room-button::part(native-button) {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        outline: none !important;
-      }
       .room-button .button-content {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 6px;
-        padding: 16px 12px;
         position: relative;
         z-index: 1;
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
-        min-height: 80px;
       }
       .room-button .button-icon {
         font-size: 32px;
@@ -394,17 +372,7 @@ export class ControlPanel extends LitElement {
         box-sizing: border-box;
       }
       .room-button.pressed {
-        --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
-        --mdc-button-outline-color: transparent !important;
         background: var(--primary-color, var(--mdc-theme-primary)) !important;
-        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-        box-shadow: none !important;
-      }
-      .room-button.pressed::part(button),
-      .room-button.pressed::part(native-button) {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
       }
       .room-button.pressed .button-icon {
         color: var(--text-primary-color, var(--mdc-theme-on-primary));
@@ -419,33 +387,19 @@ export class ControlPanel extends LitElement {
       }
       .room-button:active:not(.pressed) {
         transform: scale(0.98);
-        background: var(--primary-color, var(--mdc-theme-primary)) !important;
-        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-        opacity: var(--ha-ripple-pressed-opacity, 0.12);
-      }
-      .room-button:active:not(.pressed)::part(button),
-      .room-button:active:not(.pressed)::part(native-button) {
-        transform: scale(0.98);
-        background: var(--primary-color, var(--mdc-theme-primary)) !important;
-        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-        opacity: var(--ha-ripple-pressed-opacity, 0.12);
-        width: 100% !important;
-        height: 100% !important;
       }
       @media (hover: hover) and (pointer: fine) {
         .room-button:hover:not(.pressed) {
-          border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-          background: var(--primary-color, var(--mdc-theme-primary)) !important;
+          background: var(--primary-color, var(--mdc-theme-primary));
           opacity: var(--ha-ripple-hover-opacity, 0.04);
         }
-        .room-button:hover:not(.pressed)::part(button),
-        .room-button:hover:not(.pressed)::part(native-button) {
-          border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-          background: var(--primary-color, var(--mdc-theme-primary)) !important;
-          opacity: var(--ha-ripple-hover-opacity, 0.04);
-          width: 100% !important;
-          height: 100% !important;
-        }
+      }
+      ha-ripple {
+        --md-ripple-color: var(--ha-ripple-color);
+        --md-ripple-hover-color: var(--ha-ripple-hover-color);
+        --md-ripple-pressed-color: var(--ha-ripple-pressed-color);
+        --md-ripple-hover-opacity: var(--ha-ripple-hover-opacity);
+        --md-ripple-pressed-opacity: var(--ha-ripple-pressed-opacity);
       }
       .content {
         color: var(--primary-text-color);
