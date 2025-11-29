@@ -59,8 +59,7 @@ export class ControlPanel extends LitElement {
         // Синхронизируем selectedRooms с текущими убираемыми комнатами
         if (JSON.stringify(this.selectedRooms.sort()) !== JSON.stringify(newCleaningRooms.sort())) {
           this.selectedRooms = [...newCleaningRooms];
-          // Отправляем событие для синхронизации с родительским компонентом
-          this.dispatchEvent(new CustomEvent("rooms-synced", { detail: { rooms: this.selectedRooms } }));
+          // Синхронизация selectedRooms с текущими убираемыми комнатами
         }
       } else if (wasCleaning) {
         // Уборка только что завершилась - очищаем выбор, если он был синхронизирован с уборкой
@@ -320,7 +319,6 @@ export class ControlPanel extends LitElement {
     if (!this._vacuumService) return;
     try {
       await this._vacuumService.stop();
-      this.dispatchEvent(new CustomEvent("vacuum-stopped"));
     } catch (error) {
       console.error("[Vacuum Schedule Card] Ошибка остановки уборки:", error);
       this.dispatchEvent(new CustomEvent("error", { detail: { message: `${this._t("error_stopping") || "Ошибка остановки"}: ${error}` } }));
@@ -331,7 +329,6 @@ export class ControlPanel extends LitElement {
     if (!this._vacuumService) return;
     try {
       await this._vacuumService.pause();
-      this.dispatchEvent(new CustomEvent("vacuum-paused"));
     } catch (error) {
       console.error("[Vacuum Schedule Card] Ошибка паузы уборки:", error);
       this.dispatchEvent(new CustomEvent("error", { detail: { message: `${this._t("error_pausing") || "Ошибка паузы"}: ${error}` } }));
@@ -342,7 +339,6 @@ export class ControlPanel extends LitElement {
     if (!this._vacuumService) return;
     try {
       await this._vacuumService.returnToBase();
-      this.dispatchEvent(new CustomEvent("vacuum-returned"));
     } catch (error) {
       console.error("[Vacuum Schedule Card] Ошибка возврата на станцию:", error);
       this.dispatchEvent(new CustomEvent("error", { detail: { message: `${this._t("error_returning") || "Ошибка возврата"}: ${error}` } }));

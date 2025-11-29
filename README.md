@@ -1,175 +1,177 @@
 # Vacuum Schedule Card
 
-Кастомная карточка для Home Assistant, позволяющая создавать и управлять расписанием уборки для роботов-пылесосов (включая Dreame, Xiaomi M30S и другие) с использованием интеграции [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum).
+A custom Home Assistant Lovelace card for creating and managing vacuum cleaning schedules for robot vacuums (including Dreame, Xiaomi M30S, and others) using the [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) integration.
 
-## Возможности
+**Languages:** [English](README.md) | [Русский](README.ru.md)
 
-- ✅ **Панель управления пылесосом** - прямое управление пылесосом с карточки (запуск, остановка, пауза, возврат на базу)
-- ✅ **Выбор комнат для уборки** - выбор конкретных комнат или уборка всего дома прямо из панели управления
-- ✅ **Иконка робота-пылесоса** - визуальная индикация статуса с иконкой в стиле Xiaomi
-- ✅ Создание и управление расписаниями уборки
-- ✅ Выбор дней недели для каждого расписания
-- ✅ Установка времени уборки
-- ✅ Выбор комнат для уборки в расписаниях (или уборка всех комнат)
-- ✅ Включение/выключение расписаний одним кликом
-- ✅ Редактирование и удаление расписаний
-- ✅ Автоматическое создание и синхронизация автоматизаций в Home Assistant
-- ✅ Мгновенное отображение изменений (диалог закрывается сразу, автоматизации создаются в фоне)
-- ✅ Автоматическая перезагрузка автоматизаций после изменений
-- ✅ Поддержка локализации (русский и английский языки)
-- ✅ Полная поддержка тем Home Assistant
-- ✅ Адаптивный дизайн для touch-экранов
-- ✅ Кастомный заголовок карточки
+![Vacuum Schedule Card](images/screen1.jpg)
 
-## Установка
+## Features
 
-### Через HACS (рекомендуется)
+- ✅ **Vacuum Control Panel** - Direct vacuum control from the card (start, stop, pause, return to base)
+- ✅ **Room Selection** - Select specific rooms or clean the entire house directly from the control panel
+- ✅ **Vacuum Robot Icon** - Visual status indication with a Xiaomi-style icon
+- ✅ Create and manage cleaning schedules
+- ✅ Select days of the week for each schedule
+- ✅ Set cleaning time
+- ✅ Select rooms for cleaning in schedules (or clean all rooms)
+- ✅ Enable/disable schedules with one click
+- ✅ Edit and delete schedules
+- ✅ Automatic creation and synchronization of Home Assistant automations
+- ✅ Instant display of changes (dialog closes immediately, automations are created in the background)
+- ✅ Automatic reload of automations after changes
+- ✅ Localization support (Russian and English)
+- ✅ Full Home Assistant theme support
+- ✅ Touch-screen optimized design
+- ✅ Custom card title
 
-1. Убедитесь, что у вас установлен [HACS](https://hacs.xyz/)
-2. В HACS перейдите в раздел "Frontend"
-3. Нажмите на три точки в правом верхнем углу → "Настройки" → "Пользовательские репозитории"
-4. Добавьте репозиторий:
+## Installation
+
+### Via HACS (Recommended)
+
+1. Make sure you have [HACS](https://hacs.xyz/) installed
+2. In HACS, go to "Frontend"
+3. Click the three dots in the top right corner → "Settings" → "Custom repositories"
+4. Add the repository:
    - URL: `https://github.com/drrhaos/vacuum-schedule-card`
-   - Категория: "Lovelace"
-5. Найдите "Vacuum Schedule Card" в HACS и установите
-6. Перезагрузите Home Assistant
+   - Category: "Lovelace"
+5. Find "Vacuum Schedule Card" in HACS and install it
+6. Restart Home Assistant
 
-**Установка из последних коммитов:**
+**Installing from Latest Commits:**
 
-HACS для Lovelace карточек автоматически использует последний коммит из ветки `main`, если файл доступен в репозитории. 
+HACS automatically uses the latest commit from the `main` branch for Lovelace cards if the compiled file is available in the repository.
 
-**Важно:** Для Lovelace карточек HACS **автоматически** использует последний коммит из основной ветки, если файл `dist/vacuum-schedule-card.js` присутствует в репозитории. Нет необходимости включать какие-либо специальные опции.
+**How it works:**
+1. On each commit to the `main` branch, a GitHub Actions workflow automatically runs
+2. The workflow builds the project and commits the `dist/vacuum-schedule-card.js` file to the `main` branch
+3. HACS automatically sees this file and uses it for installation/updates
 
-**Как это работает:**
-1. При каждом коммите в ветку `main` автоматически запускается GitHub Actions workflow
-2. Workflow собирает проект и коммитит файл `dist/vacuum-schedule-card.js` в ветку `main`
-3. HACS автоматически видит этот файл и использует его для установки/обновления
+**To install from latest commits:**
+- Simply install the card via HACS - it will automatically use the latest commit from `main`
+- When updating the card, HACS will also use the latest commit
 
-**Для установки из последних коммитов:**
-- Просто установите карточку через HACS - она автоматически будет использовать последний коммит из `main`
-- При обновлении карточки HACS также будет использовать последний коммит
+**If HACS only shows releases:**
+- Make sure the `dist/vacuum-schedule-card.js` file is present in the `main` branch of the repository
+- Check that the `build-and-commit.yml` workflow runs successfully and commits the file
+- Try reinstalling the card via HACS (three dots → Uninstall, then Install again)
 
-**Если HACS показывает только релизы:**
-- Убедитесь, что файл `dist/vacuum-schedule-card.js` присутствует в ветке `main` репозитория
-- Проверьте, что workflow `build-and-commit.yml` успешно выполняется и коммитит файл
-- Попробуйте переустановить карточку через HACS (три точки → Uninstall, затем Install заново)
+**Note:** The `dist/vacuum-schedule-card.js` file is automatically built and committed to the `main` branch on each source code change via the GitHub Actions workflow `build-and-commit.yml`.
 
-**Примечание:** Файл `dist/vacuum-schedule-card.js` автоматически собирается и коммитится в ветку `main` при каждом изменении исходного кода через GitHub Actions workflow `build-and-commit.yml`.
+### Manual Installation
 
-### Ручная установка
-
-1. Скачайте файл `vacuum-schedule-card.js` из релизов (находится в папке `dist/`)
-2. Скопируйте его в папку `www` в конфигурационном каталоге Home Assistant
-3. Добавьте ресурс в Home Assistant:
-   - Перейдите в "Настройки" → "Панели управления" → "Lovelace" → "Ресурсы"
-   - Нажмите "Добавить ресурс"
+1. Download the `vacuum-schedule-card.js` file from releases (located in the `dist/` folder)
+2. Copy it to the `www` folder in your Home Assistant configuration directory
+3. Add the resource in Home Assistant:
+   - Go to "Settings" → "Dashboards" → "Lovelace" → "Resources"
+   - Click "Add Resource"
    - URL: `/local/vacuum-schedule-card.js`
-   - Тип: "JavaScript Module"
-4. Перезагрузите Home Assistant
+   - Type: "JavaScript Module"
+4. Restart Home Assistant
 
-## Использование
+## Usage
 
-### Добавление карточки на панель
+### Adding the Card to Dashboard
 
-1. Перейдите в режим редактирования панели Lovelace
-2. Нажмите "Добавить карточку"
-3. Выберите "Ручная конфигурация"
-4. Добавьте следующую конфигурацию:
+1. Go to Lovelace dashboard edit mode
+2. Click "Add Card"
+3. Select "Manual Configuration"
+4. Add the following configuration:
 
 ```yaml
 type: custom:vacuum-schedule-card
 entity: vacuum.your_vacuum_entity
-title: "Расписание уборки"  # Опционально: кастомный заголовок карточки
-hidden_rooms: [16, 17]  # Опционально: список ID комнат, которые нужно скрыть из выбора
-show_room_ids: false  # Опционально: показывать ID комнат на кнопках
-room_icons:  # Опционально: кастомные иконки для комнат
+title: "Vacuum Schedule"  # Optional: custom card title
+hidden_rooms: [16, 17]  # Optional: list of room IDs to hide from selection
+show_room_ids: false  # Optional: show room IDs on buttons
+room_icons:  # Optional: custom icons for rooms
   16: "🛋️"
   17: "🛏️"
   18: "🍳"
 ```
 
-Замените `vacuum.your_vacuum_entity` на идентификатор вашего пылесоса (например, `vacuum.xiaomi_m30s`).
+Replace `vacuum.your_vacuum_entity` with your vacuum's entity ID (e.g., `vacuum.xiaomi_m30s`).
 
-### Параметры конфигурации
+### Configuration Parameters
 
-- **`entity`** (обязательно) - Entity ID пылесоса (например, `vacuum.xiaomi_m30s`)
-- **`title`** (опционально) - Кастомный заголовок карточки. Если не указан, используется стандартный заголовок из переводов
-- **`hidden_rooms`** (опционально) - Массив ID комнат, которые нужно скрыть из выбора (например, `[16, 17]`). Скрытые комнаты не будут отображаться ни в панели управления, ни в диалоге создания/редактирования расписания
-- **`show_room_ids`** (опционально, по умолчанию `false`) - Показывать ID комнат на кнопках выбора комнат
-- **`room_icons`** (опционально) - Словарь кастомных иконок для комнат по их ID. Формат: `{ "16": "🛋️", "17": "🛏️" }`
+- **`entity`** (required) - Vacuum entity ID (e.g., `vacuum.xiaomi_m30s`)
+- **`title`** (optional) - Custom card title. If not specified, the default title from translations is used
+- **`hidden_rooms`** (optional) - Array of room IDs to hide from selection (e.g., `[16, 17]`). Hidden rooms will not appear in the control panel or in the schedule creation/editing dialog
+- **`show_room_ids`** (optional, default `false`) - Show room IDs on room selection buttons
+- **`room_icons`** (optional) - Dictionary of custom icons for rooms by their ID. Format: `{ "16": "🛋️", "17": "🛏️" }`
 
-### Панель управления
+### Control Panel
 
-В верхней части карточки расположена панель управления пылесосом:
+The top of the card contains a vacuum control panel:
 
-- **Кнопки управления:**
-  - ▶️ **Запуск** - запускает уборку (всего дома или выбранных комнат)
-  - ⏹️ **Остановка** - останавливает текущую уборку
-  - ⏸️ **Пауза** - ставит уборку на паузу
-  - 🏠 **На станцию** - возвращает пылесос на зарядную базу
+- **Control Buttons:**
+  - ▶️ **Start** - Starts cleaning (entire house or selected rooms)
+  - ⏹️ **Stop** - Stops current cleaning
+  - ⏸️ **Pause** - Pauses cleaning
+  - 🏠 **Return to Base** - Returns vacuum to charging dock
 
-- **Выбор комнат:**
-  - Кнопка "Все комнаты" - для уборки всего дома
-  - Кнопки отдельных комнат - для выборочной уборки
-  - Кнопки можно переключать (выбрать несколько комнат)
-  - При выборе комнат запуск уборки будет только для выбранных комнат
-  - Определенные комнаты можно скрыть из выбора, указав их ID в параметре `hidden_rooms`
+- **Room Selection:**
+  - "All rooms" button - for cleaning the entire house
+  - Individual room buttons - for selective cleaning
+  - Buttons can be toggled (select multiple rooms)
+  - When rooms are selected, cleaning will only run for selected rooms
+  - Specific rooms can be hidden from selection by specifying their IDs in the `hidden_rooms` parameter
 
-**Примечание:** Кнопки управления автоматически скрываются, когда они неактивны (например, кнопка "Запуск" скрыта во время уборки).
+**Note:** Control buttons automatically hide when they are inactive (e.g., the "Start" button is hidden during cleaning).
 
-### Создание расписания
+### Creating a Schedule
 
-1. Нажмите кнопку "Добавить" на карточке
-2. Выберите дни недели (можно выбрать несколько)
-3. Установите время уборки в формате ЧЧ:ММ
-4. Выберите комнаты для уборки (можно выбрать несколько или оставить пустым для уборки всех комнат)
-5. Включите или выключите расписание
-6. Нажмите "Сохранить"
+1. Click the "Add" button on the card
+2. Select days of the week (can select multiple)
+3. Set cleaning time in HH:MM format
+4. Select rooms for cleaning (can select multiple or leave empty to clean all rooms)
+5. Enable or disable the schedule
+6. Click "Save"
 
-**Примечание:** После сохранения диалог закрывается сразу, а расписание появляется в списке. Автоматизации создаются автоматически в фоновом режиме.
+**Note:** After saving, the dialog closes immediately and the schedule appears in the list. Automations are created automatically in the background.
 
-### Управление расписаниями
+### Managing Schedules
 
-- **Включение/выключение**: Используйте переключатель справа от расписания
-- **Удаление**: Нажмите кнопку с иконкой корзины
-- **Редактирование**: Нажмите на расписание для редактирования
+- **Enable/Disable**: Use the toggle switch to the right of the schedule
+- **Delete**: Click the trash icon button
+- **Edit**: Click on the schedule to edit it
 
-## Настройка комнат
+## Room Configuration
 
-По умолчанию карточка использует список комнат из атрибутов вашего пылесоса. Если комнаты не определены, будут использованы стандартные названия:
-- Гостиная
-- Спальня
-- Кухня
-- Ванная
+By default, the card uses the room list from your vacuum's attributes. If rooms are not defined, default names will be used:
+- Living Room
+- Bedroom
+- Kitchen
+- Bathroom
 
-### Получение ID комнат
+### Getting Room IDs
 
-Для получения правильных ID комнат вашего пылесоса:
+To get the correct room IDs for your vacuum:
 
-1. Откройте Developer Tools в Home Assistant
-2. Перейдите на вкладку "Services"
-3. Выберите сервис `dreame_vacuum.get_room_mapping`
-4. Укажите `entity_id` вашего пылесоса
-5. Вызовите сервис
-6. Проверьте результат в логах или уведомлениях
+1. Open Developer Tools in Home Assistant
+2. Go to the "Services" tab
+3. Select the `dreame_vacuum.get_room_mapping` service
+4. Specify your vacuum's `entity_id`
+5. Call the service
+6. Check the result in logs or notifications
 
-### Кастомные иконки для комнат
+### Custom Room Icons
 
-Вы можете задать кастомные иконки для комнат в конфигурации карточки:
+You can set custom icons for rooms in the card configuration:
 
 ```yaml
 type: custom:vacuum-schedule-card
 entity: vacuum.xiaomi_m30s
 room_icons:
-  16: "🛋️"  # Гостиная
-  17: "🛏️"  # Спальня
-  18: "🍳"  # Кухня
-  19: "🚿"  # Ванная
+  16: "🛋️"  # Living Room
+  17: "🛏️"  # Bedroom
+  18: "🍳"  # Kitchen
+  19: "🚿"  # Bathroom
 ```
 
-### Отображение ID комнат
+### Displaying Room IDs
 
-Для отладки можно включить отображение ID комнат на кнопках:
+For debugging, you can enable displaying room IDs on buttons:
 
 ```yaml
 type: custom:vacuum-schedule-card
@@ -177,176 +179,183 @@ entity: vacuum.xiaomi_m30s
 show_room_ids: true
 ```
 
-### Скрытие определенных комнат
+### Hiding Specific Rooms
 
-Вы можете скрыть определенные комнаты из выбора, указав их ID в параметре `hidden_rooms`. Скрытые комнаты не будут отображаться ни в панели управления, ни в диалоге создания/редактирования расписания:
+You can hide specific rooms from selection by specifying their IDs in the `hidden_rooms` parameter. Hidden rooms will not appear in the control panel or in the schedule creation/editing dialog:
 
 ```yaml
 type: custom:vacuum-schedule-card
 entity: vacuum.xiaomi_m30s
-hidden_rooms: [16, 17]  # Скрыть комнаты с ID 16 и 17
+hidden_rooms: [16, 17]  # Hide rooms with IDs 16 and 17
 ```
 
-**Примечание:** Если в существующем расписании были выбраны скрытые комнаты, они останутся в расписании, но не будут отображаться в интерфейсе. При редактировании расписания скрытые комнаты будут автоматически удалены из выбора.
+**Note:** If hidden rooms were selected in an existing schedule, they will remain in the schedule but will not be displayed in the interface. When editing a schedule, hidden rooms will be automatically removed from the selection.
 
-## Автоматизации
+## Automations
 
-Карточка автоматически создает и управляет автоматизациями в Home Assistant для каждого расписания. 
+The card automatically creates and manages Home Assistant automations for each schedule.
 
-### Формат автоматизаций
+### Automation Format
 
-Автоматизации создаются с идентификаторами вида:
+Automations are created with IDs in the format:
 - `vacuum_schedule_{schedule_id}_day_{day}`
 
-Где:
-- `schedule_id` - уникальный идентификатор расписания
-- `day` - номер дня недели (0-6, где 0 = воскресенье, 1 = понедельник и т.д.)
+Where:
+- `schedule_id` - unique schedule identifier
+- `day` - day of week number (0-6, where 0 = Sunday, 1 = Monday, etc.)
 
-### Структура автоматизации
+### Automation Structure
 
-Каждая автоматизация содержит:
-- **Триггер**: Время уборки (например, `09:00:00`)
-- **Условие**: День недели (например, `mon` для понедельника)
-- **Действие**: Вызов сервиса `dreame_vacuum.vacuum_clean_segment` с указанием комнат
+Each automation contains:
+- **Trigger**: Cleaning time (e.g., `09:00:00`)
+- **Condition**: Day of week (e.g., `mon` for Monday)
+- **Action**: Call to `dreame_vacuum.vacuum_clean_segment` service with specified rooms
 
-### Автоматическая синхронизация
+### Automatic Synchronization
 
-- Автоматизации автоматически перезагружаются после создания, обновления или удаления расписания
-- При изменении расписания старые автоматизации удаляются, новые создаются
-- При отключении расписания все связанные автоматизации удаляются
-- При включении расписания автоматизации создаются заново
+- Automations are automatically reloaded after creating, updating, or deleting a schedule
+- When a schedule is changed, old automations are deleted and new ones are created
+- When a schedule is disabled, all related automations are deleted
+- When a schedule is enabled, automations are recreated
 
-## Локализация
+## Localization
 
-Карточка автоматически определяет язык интерфейса Home Assistant и отображает текст на соответствующем языке. Поддерживаются следующие языки:
+The card automatically detects the Home Assistant interface language and displays text in the corresponding language. The following languages are supported:
 
-- **Русский** (ru) - автоматически определяется для языков, начинающихся с "ru"
-- **Английский** (en) - используется по умолчанию для всех остальных языков
+- **English** (en) - default language for all languages
+- **Russian** (ru) - automatically detected for languages starting with "ru"
 
-Язык определяется из настроек Home Assistant (`hass.locale.language` или `hass.language`). Если язык не определен или не поддерживается, используется английский.
+The language is determined from Home Assistant settings (`hass.locale.language` or `hass.language`). If the language is not defined or not supported, English is used.
 
-## Требования
+## Requirements
 
-- Home Assistant 2023.1 или новее
-- Интеграция [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) от Tasshack
-- Робот-пылесос Dreame (Xiaomi M30S и другие модели)
+- Home Assistant 2023.1 or newer
+- [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) integration by Tasshack
+- Dreame robot vacuum (Xiaomi M30S and other models)
 
-## Разработка
+## Development
 
-### Сборка из исходников
+### Building from Source
 
-1. Установите зависимости:
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Соберите проект:
+2. Build the project:
 ```bash
 npm run build
 ```
 
-3. Для разработки с автоматической пересборкой:
+3. For development with automatic rebuild:
 ```bash
 npm run watch
 ```
 
-### Структура проекта
+### Project Structure
 
 ```
 .
 ├── dist/
-│   └── vacuum-schedule-card.js  # Скомпилированный файл
+│   └── vacuum-schedule-card.js  # Compiled file
 ├── src/
-│   ├── vacuum-schedule-card.ts  # Основной компонент карточки
-│   ├── types.ts                 # TypeScript типы и интерфейсы
-│   ├── translations.ts          # Переводы
-│   ├── components/              # UI компоненты
-│   │   ├── control-panel.ts     # Панель управления пылесосом
-│   │   ├── schedule-list.ts     # Список расписаний
-│   │   └── schedule-dialog.ts    # Диалог редактирования расписания
-│   ├── services/                # Бизнес-логика
-│   │   ├── vacuum.service.ts    # Управление пылесосом
-│   │   └── schedule.service.ts  # Работа с расписаниями
-│   ├── utils/                   # Утилиты
-│   │   ├── automations.ts       # Работа с автоматизациями
-│   │   ├── api.ts               # API запросы
-│   │   ├── rooms.ts             # Загрузка комнат
-│   │   ├── formatters.ts        # Форматирование данных
-│   │   ├── i18n.ts              # Интернационализация
-│   │   └── svg-loader.ts        # Загрузка SVG иконок
-│   ├── assets/                  # Ресурсы
-│   │   ├── vacuum-robot.svg     # Иконка робота-пылесоса
-│   │   ├── vacuum-robot-outline.svg
-│   │   └── vacuum-robot-filled.svg
-│   └── mixins/                  # Миксины для компонентов
-│       └── i18n.mixin.ts        # Миксин для локализации
-├── package.json                 # Зависимости проекта
-├── tsconfig.json                # Конфигурация TypeScript
-├── rollup.config.mjs            # Конфигурация сборки (Rollup)
-├── hacs.json                    # Конфигурация HACS
-├── LICENSE                      # Лицензия
-├── CHANGELOG.md                  # История изменений
-└── README.md                    # Документация
+│   ├── vacuum-schedule-card.ts  # Main card component
+│   ├── types.ts                 # TypeScript types and interfaces
+│   ├── constants.ts             # Constants
+│   ├── components/              # UI components
+│   │   ├── control-panel.ts     # Vacuum control panel
+│   │   ├── schedule-list.ts     # Schedule list
+│   │   └── schedule-dialog.ts   # Schedule editing dialog
+│   ├── services/                # Business logic
+│   │   ├── vacuum.service.ts    # Vacuum control
+│   │   └── schedule.service.ts  # Schedule management
+│   ├── utils/                   # Utilities
+│   │   ├── automations.ts       # Automation handling
+│   │   ├── api.ts               # API requests
+│   │   ├── rooms.ts             # Room loading
+│   │   ├── formatters.ts        # Data formatting
+│   │   ├── i18n.ts              # Internationalization
+│   │   ├── event-subscription.ts # Event subscription utilities
+│   │   └── svg-loader.ts        # SVG icon loading
+│   ├── translations/            # Translations
+│   │   ├── en.ts                # English translations
+│   │   ├── ru.ts                # Russian translations
+│   │   └── index.ts             # Centralized export
+│   ├── types/                   # Type definitions
+│   │   └── automation.ts        # Automation types
+│   └── assets/                  # Resources
+│       ├── vacuum-robot.svg     # Vacuum robot icon
+│       ├── vacuum-robot-outline.svg
+│       └── vacuum-robot-filled.svg
+├── images/                      # Screenshots
+│   └── screen1.jpg
+├── package.json                 # Project dependencies
+├── tsconfig.json                # TypeScript configuration
+├── rollup.config.mjs            # Build configuration (Rollup)
+├── hacs.json                    # HACS configuration
+├── LICENSE                      # License
+├── CHANGELOG.md                 # Changelog
+└── README.md                    # Documentation
 ```
 
-### Технологии
+### Technologies
 
-- **TypeScript** - типизированный JavaScript
-- **Lit** - библиотека для создания веб-компонентов
-- **Rollup** - сборщик модулей
-- **Home Assistant WebSocket API** - для взаимодействия с Home Assistant
-- **Home Assistant REST API** - для управления автоматизациями
-- **CSS Variables** - полная поддержка тем Home Assistant
-- **Component-based Architecture** - модульная архитектура с разделением на компоненты и сервисы
+- **TypeScript** - Typed JavaScript
+- **Lit** - Library for creating web components
+- **Rollup** - Module bundler
+- **Home Assistant WebSocket API** - For interacting with Home Assistant
+- **Home Assistant REST API** - For managing automations
+- **CSS Variables** - Full Home Assistant theme support
+- **Component-based Architecture** - Modular architecture with separation into components and services
 
-## Устранение неполадок
+## Troubleshooting
 
-### Карточка не отображается
+### Card Not Displaying
 
-1. Убедитесь, что ресурс добавлен в Lovelace (Настройки → Панели управления → Lovelace → Ресурсы)
-2. Перезагрузите Home Assistant
-3. Проверьте консоль браузера (F12) на наличие ошибок
+1. Make sure the resource is added to Lovelace (Settings → Dashboards → Lovelace → Resources)
+2. Restart Home Assistant
+3. Check the browser console (F12) for errors
 
-### Расписания не сохраняются
+### Schedules Not Saving
 
-1. Проверьте логи Home Assistant на наличие ошибок
-2. Убедитесь, что интеграция dreame-vacuum установлена и работает
-3. Проверьте, что entity_id пылесоса указан правильно в конфигурации карточки
-4. Проверьте консоль браузера (F12) - ошибки отображаются с префиксом `[Vacuum Schedule Card]`
+1. Check Home Assistant logs for errors
+2. Make sure the dreame-vacuum integration is installed and working
+3. Verify that the vacuum entity_id is correctly specified in the card configuration
+4. Check the browser console (F12) - errors are displayed with the prefix `[Vacuum Schedule Card]`
 
-### Автоматизации не создаются
+### Automations Not Creating
 
-1. Проверьте права доступа - карточка должна иметь доступ к созданию автоматизаций
-2. Проверьте логи Home Assistant и консоль браузера на наличие ошибок
-3. Убедитесь, что интеграция dreame-vacuum работает корректно
-4. Попробуйте создать автоматизацию вручную через Developer Tools
+1. Check access permissions - the card must have access to create automations
+2. Check Home Assistant logs and browser console for errors
+3. Make sure the dreame-vacuum integration is working correctly
+4. Try creating an automation manually via Developer Tools
 
-### Комнаты не отображаются
+### Rooms Not Displaying
 
-1. Убедитесь, что ваш пылесос поддерживает сегментированную уборку
-2. Проверьте атрибуты пылесоса в Developer Tools → States
-3. Используйте сервис `dreame_vacuum.get_room_mapping` для получения списка комнат
+1. Make sure your vacuum supports segmented cleaning
+2. Check vacuum attributes in Developer Tools → States
+3. Use the `dreame_vacuum.get_room_mapping` service to get the room list
 
-### Кнопки управления не отображаются
+### Control Buttons Not Displaying
 
-1. Убедитесь, что entity_id пылесоса указан правильно
-2. Проверьте, что пылесос подключен и доступен в Home Assistant
-3. Кнопки автоматически скрываются, когда они неактивны (это нормальное поведение)
-4. Проверьте статус пылесоса в Developer Tools → States
+1. Make sure the vacuum entity_id is correctly specified
+2. Check that the vacuum is connected and available in Home Assistant
+3. Buttons automatically hide when they are inactive (this is normal behavior)
+4. Check the vacuum status in Developer Tools → States
 
-## Поддержка
+## Support
 
-Если у вас возникли проблемы или вопросы:
+If you encounter problems or have questions:
 
-1. Проверьте раздел "Устранение неполадок" выше
-2. Проверьте логи Home Assistant и консоль браузера на наличие ошибок
-3. Создайте issue в репозитории проекта с описанием проблемы
+1. Check the "Troubleshooting" section above
+2. Check Home Assistant logs and browser console for errors
+3. Create an issue in the project repository with a description of the problem
 
-## Лицензия
+## License
 
 MIT
 
-## Благодарности
+## Acknowledgments
 
-- [Tasshack](https://github.com/Tasshack) за интеграцию dreame-vacuum
-- Сообщество Home Assistant за поддержку
+- [Tasshack](https://github.com/Tasshack) for the dreame-vacuum integration
+- Home Assistant community for support

@@ -1,4 +1,4 @@
-import { translations } from "../translations";
+import { translations } from "../translations/index";
 import type { HomeAssistant } from "custom-card-helpers";
 
 /**

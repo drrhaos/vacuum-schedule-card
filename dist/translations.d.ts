@@ -1,2 +1,4 @@
-import type { Translations } from "./types";
-export declare const translations: Translations;
+/**
+ * Экспорт переводов из отдельных файлов
+ */
+export { translations } from "./translations";
