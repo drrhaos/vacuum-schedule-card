@@ -1,9 +1,11 @@
 import { LitElement, html, css } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Room } from "../types";
 import { VacuumService } from "../services/vacuum.service";
 import { translate } from "../utils/i18n";
+import { getVacuumRobotSVG } from "../utils/svg-loader";
 
 @customElement("vacuum-control-panel")
 export class ControlPanel extends LitElement {
@@ -125,7 +127,8 @@ export class ControlPanel extends LitElement {
     return html`
       <div class="control-panel">
         <div class="control-panel-status">
-          Статус: <strong>${this._getStateLabel()}</strong>
+          <span class="status-icon">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
+          <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
         </div>
         <div class="control-row">
           ${!isStartDisabled ? html`
@@ -206,8 +209,27 @@ export class ControlPanel extends LitElement {
         font-size: 12px;
         color: var(--secondary-text-color);
         margin-bottom: 12px;
-        text-align: center;
         line-height: 1.4;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+      }
+      .status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 128px;
+        height: 128px;
+        flex-shrink: 0;
+      }
+      .status-icon svg {
+        width: 100%;
+        height: 100%;
+      }
+      .status-text {
+        display: inline-flex;
+        align-items: center;
       }
       .control-row {
         display: flex;
