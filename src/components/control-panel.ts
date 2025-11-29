@@ -48,7 +48,29 @@ export class ControlPanel extends LitElement {
 
   private _updateCleaningRooms(): void {
     if (this._vacuumService) {
-      this._currentCleaningRooms = this._vacuumService.getCurrentCleaningRooms();
+      const newCleaningRooms = this._vacuumService.getCurrentCleaningRooms();
+      const wasCleaning = this._isCleaning();
+      
+      this._currentCleaningRooms = newCleaningRooms;
+      
+      // Если уборка активна, автоматически выбираем текущие убираемые комнаты
+      // Если уборка не активна, не меняем выбранные комнаты (управляются пользователем)
+      if (this._isCleaning()) {
+        // Синхронизируем selectedRooms с текущими убираемыми комнатами
+        if (JSON.stringify(this.selectedRooms.sort()) !== JSON.stringify(newCleaningRooms.sort())) {
+          this.selectedRooms = [...newCleaningRooms];
+          // Отправляем событие для синхронизации с родительским компонентом
+          this.dispatchEvent(new CustomEvent("rooms-synced", { detail: { rooms: this.selectedRooms } }));
+        }
+      } else if (wasCleaning) {
+        // Уборка только что завершилась - очищаем выбор, если он был синхронизирован с уборкой
+        // Но только если selectedRooms совпадали с предыдущими убираемыми комнатами
+        if (this.selectedRooms.length > 0 && 
+            JSON.stringify(this.selectedRooms.sort()) === JSON.stringify(this._currentCleaningRooms.sort())) {
+          this.selectedRooms = [];
+        }
+      }
+      
       this.requestUpdate();
     }
   }
@@ -424,10 +446,13 @@ export class ControlPanel extends LitElement {
             ${(() => {
               const isCleaning = this._isCleaning();
               const isDisabled = isCleaning;
+              // Если уборка активна, кнопка "Все комнаты" не нажата (так как выбраны конкретные комнаты)
+              // Если уборка не активна, кнопка нажата когда selectedRooms пуст
+              const isPressed = !isCleaning && this.selectedRooms.length === 0;
               
               return html`
                 <ha-card 
-                  class="room-button ${this.selectedRooms.length === 0 && !isCleaning ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
+                  class="room-button ${isPressed ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
                   @click=${isDisabled ? undefined : this._toggleAllRooms}
                   title="${this._t("all_rooms")}${isDisabled ? " (идет уборка)" : ""}"
                 >
@@ -441,16 +466,19 @@ export class ControlPanel extends LitElement {
             })()}
             ${visibleRooms.map((room) => {
               const isCleaning = this._isCleaning();
-              const isRoomCleaning = this._currentCleaningRooms.includes(room.id);
               const isSelected = this.selectedRooms.includes(room.id);
-              const isPressed = isRoomCleaning || (isSelected && !isCleaning);
+              // Если уборка активна, показываем выбранными только текущие убираемые комнаты
+              // Если уборка не активна, показываем выбранными комнаты, выбранные пользователем
+              const isPressed = isCleaning 
+                ? this._currentCleaningRooms.includes(room.id)
+                : isSelected;
               const isDisabled = isCleaning;
               
               return html`
                 <ha-card 
                   class="room-button ${isPressed ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
                   @click=${isDisabled ? undefined : () => this._toggleRoom(room.id)}
-                  title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}${isRoomCleaning ? " (убирается)" : ""}"
+                  title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}${isCleaning && this._currentCleaningRooms.includes(room.id) ? " (убирается)" : ""}"
                 >
                   <div class="button-content">
                     <div class="button-icon">${this._renderRoomIcon(room)}</div>
