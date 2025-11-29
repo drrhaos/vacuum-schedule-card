@@ -51,7 +51,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Build: Update compiled card file [skip ci]"
-            git push
+            git push origin main
           fi
 
 
