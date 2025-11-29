@@ -116,21 +116,26 @@ export class ControlPanel extends LitElement {
     if (taskStatus) {
       const taskStatusLower = taskStatus.toLowerCase().trim();
       
-      // Список неактивных статусов (когда можно выбирать комнаты)
+      // Список статусов, при которых кнопки активны (можно выбирать комнаты)
       // Основано на переводах из dreame-vacuum интеграции
       // https://github.com/Tasshack/dreame-vacuum/blob/master/custom_components/dreame_vacuum/translations/
-      const inactiveStatuses = [
+      const activeButtonStatuses = [
         // Английские статусы
-        "idle", "docked", "standby", "none", "unknown", "off", "stopped", "completed",
+        "unknown", "completed",
         // Русские статусы (переведенные Home Assistant)
-        "ожидание", "на базе", "неизвестно", "выключено", "остановлено", "нет", "завершено",
+        "неизвестно", "завершено",
         // Пустые значения
-        "", "null", "undefined"
+        "", "null", "undefined", "none"
       ];
       
-      // Если статус не в списке неактивных, значит идет активная задача - блокируем
-      // Активные статусы могут быть: cleaning, paused, returning, charging, drying, rinsing и т.д.
-      if (!inactiveStatuses.includes(taskStatusLower)) {
+      // Если статус НЕ в списке активных, значит идет активная задача - блокируем
+      // Активные задачи (блокируем кнопки): cleaning, zone_cleaning, room_cleaning, spot_cleaning,
+      // fast_mapping, cleaning_paused, room_cleaning_paused, zone_cleaning_paused,
+      // spot_cleaning_paused, map_cleaning_paused, docking_paused, mopping_paused,
+      // zone_mopping_paused, room_mopping_paused, zone_docking_paused, room_docking_paused,
+      // cruising_path, cruising_path_paused, cruising_point, cruising_point_paused,
+      // summon_clean_paused, returning_to_install_mop, returning_to_remove_mop и т.д.
+      if (!activeButtonStatuses.includes(taskStatusLower)) {
         return true;
       }
     }
