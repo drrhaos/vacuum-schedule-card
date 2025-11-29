@@ -180,6 +180,7 @@ export class VacuumService implements VacuumControl {
   /**
    * Получает статус задачи из сущности sensor.{entity_name}_task_status
    * Например, для vacuum.pylesos ищет sensor.pylesos_task_status
+   * Возвращает значение состояния или undefined, если сущность не найдена
    */
   getTaskStatus(): string | undefined {
     // Извлекаем имя сущности из entity (убираем префикс "vacuum.")
@@ -188,14 +189,13 @@ export class VacuumService implements VacuumControl {
     
     // Проверяем отдельную сущность sensor.{entity_name}_task_status
     const sensorState = this.hass.states[sensorEntityId];
-    if (sensorState && sensorState.state) {
+    if (sensorState && sensorState.state !== null && sensorState.state !== undefined) {
       const stateValue = String(sensorState.state).trim();
-      console.log(`[Vacuum Schedule Card] task_status: ${stateValue} (entity: ${sensorEntityId})`);
-      if (stateValue && stateValue.toLowerCase() !== "unknown" && stateValue.toLowerCase() !== "none") {
-        return stateValue;
-      }
+      console.log(`[Vacuum Schedule Card] task_status: "${stateValue}" (entity: ${sensorEntityId})`);
+      // Возвращаем значение состояния, включая "unknown" и "none" для обработки в _isCleaning()
+      return stateValue || undefined;
     } else {
-      console.log(`[Vacuum Schedule Card] task_status: не найден (entity: ${sensorEntityId})`);
+      console.log(`[Vacuum Schedule Card] task_status: не найден (entity: ${sensorEntityId}, exists: ${!!sensorState})`);
     }
     
     return undefined;

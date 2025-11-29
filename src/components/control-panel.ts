@@ -113,7 +113,9 @@ export class ControlPanel extends LitElement {
     // Проверяем статус задачи из sensor.{entity_name}_task_status
     // Блокируем кнопки выбора комнат, если идет активная задача
     const taskStatus = this._vacuumService.getTaskStatus();
-    if (taskStatus) {
+    
+    // Если task_status существует (даже если это пустая строка или "unknown")
+    if (taskStatus !== undefined) {
       const taskStatusLower = taskStatus.toLowerCase().trim();
       
       // Список статусов, при которых кнопки активны (можно выбирать комнаты)
@@ -136,13 +138,20 @@ export class ControlPanel extends LitElement {
       // cruising_path, cruising_path_paused, cruising_point, cruising_point_paused,
       // summon_clean_paused, returning_to_install_mop, returning_to_remove_mop и т.д.
       if (!activeButtonStatuses.includes(taskStatusLower)) {
+        console.log(`[Vacuum Schedule Card] Блокировка кнопок: task_status="${taskStatus}" (${taskStatusLower})`);
         return true;
+      } else {
+        console.log(`[Vacuum Schedule Card] Кнопки активны: task_status="${taskStatus}" (${taskStatusLower})`);
       }
     }
     
     // Fallback: проверяем основной статус пылесоса и список убираемых комнат
     const state = this._getVacuumState();
-    return state === "cleaning" || this._currentCleaningRooms.length > 0;
+    const isCleaningByState = state === "cleaning" || this._currentCleaningRooms.length > 0;
+    if (isCleaningByState) {
+      console.log(`[Vacuum Schedule Card] Блокировка кнопок (fallback): state="${state}", rooms=${this._currentCleaningRooms.length}`);
+    }
+    return isCleaningByState;
   }
 
   private _isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return"): boolean {

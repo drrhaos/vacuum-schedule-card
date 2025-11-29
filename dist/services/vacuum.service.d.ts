@@ -25,6 +25,7 @@ export declare class VacuumService implements VacuumControl {
     /**
      * Получает статус задачи из сущности sensor.{entity_name}_task_status
      * Например, для vacuum.pylesos ищет sensor.pylesos_task_status
+     * Возвращает значение состояния или undefined, если сущность не найдена
      */
     getTaskStatus(): string | undefined;
     /**
