@@ -64,16 +64,43 @@ export async function getAllAutomations(
                 automation_id: automationId,
               });
             } catch (e3: any) {
-              // Если все варианты не работают, используем данные из hass.states
-              const state = hass.states[entityId];
-              if (state) {
-                config = {
-                  id: state.attributes?.id || automationId,
-                  alias: state.attributes?.friendly_name || automationId,
-                  _entity_id: entityId,
-                  _state: state.state,
-                  _attributes: state.attributes,
-                };
+              // Если все варианты не работают, пробуем получить через REST API
+              console.warn(`[Vacuum Schedule Card] WebSocket команды не работают для ${automationId}, пробуем REST API`);
+              try {
+                const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
+                if (token) {
+                  const baseUrl = window.location.origin;
+                  const apiUrl = `${baseUrl}/api/config/automation/config/${automationId}`;
+                  const response = await fetch(apiUrl, {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      "Content-Type": "application/json",
+                    },
+                  });
+                  if (response.ok) {
+                    config = await response.json();
+                    console.log(`[Vacuum Schedule Card] ✅ Получена конфигурация ${automationId} через REST API`);
+                  }
+                }
+              } catch (restError: any) {
+                console.warn(`[Vacuum Schedule Card] REST API тоже не сработал для ${automationId}, используем fallback`);
+              }
+              
+              // Если REST API не сработал, используем данные из hass.states (но они неполные)
+              if (!config) {
+                const state = hass.states[entityId];
+                if (state) {
+                  config = {
+                    id: state.attributes?.id || automationId,
+                    alias: state.attributes?.friendly_name || automationId,
+                    _entity_id: entityId,
+                    _state: state.state,
+                    _attributes: state.attributes,
+                    _incomplete: true, // Помечаем как неполную конфигурацию
+                  };
+                  console.warn(`[Vacuum Schedule Card] ⚠️ Используется неполная конфигурация из hass.states для ${automationId}`);
+                }
               }
             }
           }
@@ -202,6 +229,12 @@ export function parseScheduleFromAutomation(
   if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
     return null;
   }
+  
+  // Если конфигурация помечена как неполная, пропускаем её
+  if (automationConfig._incomplete) {
+    console.warn(`[Vacuum Schedule Card] ⚠️ Пропускаем автоматизацию ${configId} - конфигурация неполная (нет trigger/action)`);
+    return null;
+  }
 
   // Парсим id: vacuum_schedule_{scheduleId}_day_{day}
   const idMatch = configId.match(/^vacuum_schedule_(.+)_day_(\d+)$/);
@@ -214,28 +247,49 @@ export function parseScheduleFromAutomation(
   const day = parseInt(idMatch[2], 10);
   
   // Логируем для отладки структуру автоматизации
-  // Поддерживаем оба варианта: action/actions, condition/conditions
+  // Поддерживаем оба варианта: action/actions, condition/conditions, trigger/triggers
+  const hasTrigger = !!(automationConfig.trigger || automationConfig.triggers);
   const hasAction = !!(automationConfig.action || automationConfig.actions);
   const hasCondition = !!(automationConfig.condition || automationConfig.conditions);
+  
   console.log(`[Vacuum Schedule Card] Парсинг автоматизации ${configId}:`, {
-    hasTrigger: !!automationConfig.trigger,
+    hasTrigger,
+    hasTriggers: !!automationConfig.triggers,
     hasAction,
+    hasActions: !!automationConfig.actions,
     hasCondition,
-    triggerType: Array.isArray(automationConfig.trigger) ? "array" : typeof automationConfig.trigger,
+    hasConditions: !!automationConfig.conditions,
+    triggerType: Array.isArray(automationConfig.trigger || automationConfig.triggers) ? "array" : typeof (automationConfig.trigger || automationConfig.triggers),
     actionType: Array.isArray(automationConfig.action || automationConfig.actions) ? "array" : typeof (automationConfig.action || automationConfig.actions),
+    allKeys: Object.keys(automationConfig),
   });
+  
+  // Если нет ни trigger, ни triggers, значит конфигурация неполная
+  if (!hasTrigger) {
+    console.error(`[Vacuum Schedule Card] ❌ Автоматизация ${configId} не имеет триггеров! Конфигурация неполная.`);
+    console.error(`[Vacuum Schedule Card] Полная структура автоматизации:`, JSON.stringify(automationConfig, null, 2));
+    return null;
+  }
 
-  // Извлекаем время из trigger
+  // Извлекаем время из trigger/triggers
+  // Поддерживаем оба варианта: trigger (единственное) и triggers (множественное)
   // Безопасная обработка триггеров с проверкой на undefined/null
-  if (!automationConfig.trigger) {
-    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет триггера`);
+  const triggerData = automationConfig.trigger || automationConfig.triggers;
+  if (!triggerData) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет триггера (проверено trigger и triggers)`);
+    console.warn(`[Vacuum Schedule Card] Структура автоматизации:`, {
+      keys: Object.keys(automationConfig),
+      hasTrigger: !!automationConfig.trigger,
+      hasTriggers: !!automationConfig.triggers,
+      config: automationConfig,
+    });
     return null;
   }
   
-  const triggers = Array.isArray(automationConfig.trigger)
-    ? automationConfig.trigger.filter((t: any) => t != null) // Фильтруем undefined/null
-    : automationConfig.trigger != null
-    ? [automationConfig.trigger]
+  const triggers = Array.isArray(triggerData)
+    ? triggerData.filter((t: any) => t != null) // Фильтруем undefined/null
+    : triggerData != null
+    ? [triggerData]
     : [];
   
   if (triggers.length === 0) {
@@ -246,6 +300,7 @@ export function parseScheduleFromAutomation(
   const timeTrigger = triggers.find((t: any) => t && t.platform === "time");
   if (!timeTrigger || !timeTrigger.at) {
     console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет триггера времени`);
+    console.warn(`[Vacuum Schedule Card] Доступные триггеры:`, triggers);
     return null;
   }
 
