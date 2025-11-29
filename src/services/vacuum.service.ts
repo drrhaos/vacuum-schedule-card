@@ -49,12 +49,7 @@ export class VacuumService implements VacuumControl {
     return state?.state || "unknown";
   }
 
-  /**
-   * Получает статус {entity_name}_state из сущности sensor.{entity_name}_state
-   * Например, для vacuum.pylesos ищет sensor.pylesos_state
-   * Для vacuum.xiaomi_m30s ищет sensor.xiaomi_m30s_state
-   */
-  getPylesosState(): string | undefined {
+  getAdditionalState(): string | undefined {
     // Извлекаем имя сущности из entity (убираем префикс "vacuum.")
     const entityName = this.entity.replace(/^vacuum\./, "");
     const sensorEntityId = `sensor.${entityName}_state`;
@@ -79,14 +74,14 @@ export class VacuumService implements VacuumControl {
     const attrs = state.attributes;
     
     // Проверяем различные возможные варианты названия атрибута
-    const pylesosState = attrs[`${entityName}_state`] || attrs.pylesos_state || attrs.pylesosState;
+    const additionalState = attrs[`${entityName}_state`];
     
-    if (typeof pylesosState === "string" && pylesosState.trim()) {
-      const normalized = pylesosState.trim().toLowerCase().replace(/\s+/g, "");
+    if (typeof additionalState === "string" && additionalState.trim()) {
+      const normalized = additionalState.trim().toLowerCase().replace(/\s+/g, "");
       // Не показываем пустые значения или сообщения об отсутствии ошибок
       const nonErrorValues = ["noerror", "нетешибок", "none", "нет", "null", "undefined", "unknown", "неизвестно", ""];
       if (!nonErrorValues.includes(normalized)) {
-        return pylesosState.trim();
+        return additionalState.trim();
       }
     }
     return undefined;

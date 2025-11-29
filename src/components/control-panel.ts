@@ -102,14 +102,14 @@ export class ControlPanel extends LitElement {
     return this._vacuumService.getStateLabel(state);
   }
 
-  private _getPylesosState(): string | undefined {
+  private _getAdditionalState(): string | undefined {
     if (!this._vacuumService) return undefined;
-    return this._vacuumService.getPylesosState();
+    return this._vacuumService.getAdditionalState();
   }
 
-  private _getPylesosStateLabel(): string {
-    const pylesosState = this._getPylesosState();
-    if (!pylesosState) return "";
+  private _getAdditionalStateLabel(): string {
+    const additionalState = this._getAdditionalState();
+    if (!additionalState) return "";
     
     // Маппинг статусов (как английских, так и переведенных Home Assistant) на ключи переводов
     // Основано на переводах из dreame-vacuum интеграции
@@ -161,7 +161,7 @@ export class ControlPanel extends LitElement {
       "стирка приостановлена": "washing_paused",
     };
     
-    const stateLower = pylesosState.toLowerCase().trim();
+    const stateLower = additionalState.toLowerCase().trim();
     let translationKey: string;
     
     // Проверяем маппинг для известных статусов
@@ -185,7 +185,7 @@ export class ControlPanel extends LitElement {
     const translated = this._t(translationKey);
     // Если перевод найден и он отличается от ключа, возвращаем перевод
     // Иначе возвращаем оригинальное значение
-    return translated && translated !== translationKey ? translated : pylesosState;
+    return translated && translated !== translationKey ? translated : additionalState;
   }
 
   private _getError(): string | undefined {
@@ -321,7 +321,7 @@ export class ControlPanel extends LitElement {
         <div class="control-panel-status">
           <span class="status-icon ${vacuumState === "cleaning" ? "cleaning" : ""}">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
           <div class="status-info">
-            <span class="status-text">Статус: <strong>${this._getStateLabel()}${this._getPylesosState() ? `, ${this._getPylesosStateLabel()}` : ""}</strong></span>
+            <span class="status-text">Статус: <strong>${this._getStateLabel()}${this._getAdditionalState() ? `, ${this._getAdditionalStateLabel()}` : ""}</strong></span>
             ${this._getError() ? html`
               <span class="status-error">${this._getError()}</span>
             ` : ""}

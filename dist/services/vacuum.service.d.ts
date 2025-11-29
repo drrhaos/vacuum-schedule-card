@@ -14,12 +14,7 @@ export declare class VacuumService implements VacuumControl {
     pause(): Promise<void>;
     returnToBase(): Promise<void>;
     getState(): string;
-    /**
-     * Получает статус {entity_name}_state из сущности sensor.{entity_name}_state
-     * Например, для vacuum.pylesos ищет sensor.pylesos_state
-     * Для vacuum.xiaomi_m30s ищет sensor.xiaomi_m30s_state
-     */
-    getPylesosState(): string | undefined;
+    getAdditionalState(): string | undefined;
     isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return", vacuumState: string): boolean;
     getStateLabel(state: string): string;
     /**

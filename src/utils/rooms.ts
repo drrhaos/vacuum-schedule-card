@@ -90,7 +90,6 @@ export async function loadRooms(
               name: nameState.state,
             };
 
-            // Сначала пытаемся получить иконку из самой select-сущности (select.pylesos_room_1_name)
             const iconFromSelectEntity = await getEntityIcon(hass, roomNameEntity);
             if (iconFromSelectEntity) {
               room.icon = iconFromSelectEntity;
