@@ -243,8 +243,18 @@ class VacuumScheduleCard extends LitElement {
           } else if (parsed.enabled) {
             schedule.enabled = true;
           }
-        } catch (e) {
-          console.warn("Ошибка обработки автоматизации:", e);
+        } catch (e: any) {
+          const errorId = automationConfig?.id || automationConfig?._entity_id || "неизвестно";
+          console.error(`[Vacuum Schedule Card] ❌ Ошибка обработки автоматизации ${errorId}:`, e);
+          console.error(`[Vacuum Schedule Card] Детали автоматизации:`, {
+            id: automationConfig?.id,
+            entity_id: automationConfig?._entity_id,
+            hasTrigger: !!automationConfig?.trigger,
+            hasAction: !!automationConfig?.action,
+            trigger: automationConfig?.trigger,
+            action: automationConfig?.action,
+          });
+          // Продолжаем обработку других автоматизаций, не прерывая весь процесс
         }
       }
 

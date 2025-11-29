@@ -83,20 +83,42 @@ export async function createOrUpdateAutomationViaREST(
     const apiUrl = `${baseUrl}/api/config/automation/config/${automation.id}`;
 
     // Подготавливаем тело запроса согласно документации
-    const requestBody = {
+    // Home Assistant использует формат: triggers, conditions, actions (множественное число)
+    // И в actions используется action вместо service
+    const requestBody: any = {
       id: automation.id,
       alias: automation.alias,
       description: automation.description,
-      trigger: automation.trigger,
-      condition: automation.condition || [],
-      action: automation.action,
+      triggers: Array.isArray(automation.trigger) ? automation.trigger : [automation.trigger],
+      conditions: Array.isArray(automation.condition) ? automation.condition : (automation.condition ? [automation.condition] : []),
+      actions: Array.isArray(automation.action) ? automation.action : [automation.action],
       mode: automation.mode || "single",
     };
+    
+    // Преобразуем actions: заменяем service на action для совместимости с форматом Home Assistant
+    // В примере используется action: dreame_vacuum.vacuum_clean_segment вместо service
+    if (requestBody.actions && Array.isArray(requestBody.actions)) {
+      requestBody.actions = requestBody.actions.map((act: any) => {
+        if (act.service && !act.action) {
+          // Создаем копию без изменения исходного объекта
+          const newAct = { ...act };
+          newAct.action = act.service;
+          // Удаляем service, оставляем только action (как в примере)
+          delete newAct.service;
+          return newAct;
+        }
+        return act;
+      });
+    }
 
     console.log(`[Vacuum Schedule Card] Отправка REST API запроса на создание/обновление автоматизации:`, {
       url: apiUrl,
       automationId: automation.id,
+      triggersCount: requestBody.triggers?.length || 0,
+      conditionsCount: requestBody.conditions?.length || 0,
+      actionsCount: requestBody.actions?.length || 0,
     });
+    console.log(`[Vacuum Schedule Card] Тело запроса:`, JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(apiUrl, {
       method: "POST",

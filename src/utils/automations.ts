@@ -205,26 +205,92 @@ export function parseScheduleFromAutomation(
 
   // Парсим id: vacuum_schedule_{scheduleId}_day_{day}
   const idMatch = configId.match(/^vacuum_schedule_(.+)_day_(\d+)$/);
-  if (!idMatch) return null;
+  if (!idMatch) {
+    console.warn(`[Vacuum Schedule Card] Не удалось распарсить ID автоматизации: ${configId}`);
+    return null;
+  }
 
   const scheduleId = idMatch[1];
   const day = parseInt(idMatch[2], 10);
+  
+  // Логируем для отладки структуру автоматизации
+  // Поддерживаем оба варианта: action/actions, condition/conditions
+  const hasAction = !!(automationConfig.action || automationConfig.actions);
+  const hasCondition = !!(automationConfig.condition || automationConfig.conditions);
+  console.log(`[Vacuum Schedule Card] Парсинг автоматизации ${configId}:`, {
+    hasTrigger: !!automationConfig.trigger,
+    hasAction,
+    hasCondition,
+    triggerType: Array.isArray(automationConfig.trigger) ? "array" : typeof automationConfig.trigger,
+    actionType: Array.isArray(automationConfig.action || automationConfig.actions) ? "array" : typeof (automationConfig.action || automationConfig.actions),
+  });
 
   // Извлекаем время из trigger
+  // Безопасная обработка триггеров с проверкой на undefined/null
+  if (!automationConfig.trigger) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет триггера`);
+    return null;
+  }
+  
   const triggers = Array.isArray(automationConfig.trigger)
-    ? automationConfig.trigger
-    : [automationConfig.trigger];
-  const timeTrigger = triggers.find((t: any) => t.platform === "time");
-  if (!timeTrigger?.at) return null;
+    ? automationConfig.trigger.filter((t: any) => t != null) // Фильтруем undefined/null
+    : automationConfig.trigger != null
+    ? [automationConfig.trigger]
+    : [];
+  
+  if (triggers.length === 0) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет валидных триггеров`);
+    return null;
+  }
+  
+  const timeTrigger = triggers.find((t: any) => t && t.platform === "time");
+  if (!timeTrigger || !timeTrigger.at) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет триггера времени`);
+    return null;
+  }
 
   const time = timeTrigger.at.substring(0, 5); // "HH:MM"
 
-  // Извлекаем комнаты из action
-  const actions = Array.isArray(automationConfig.action)
-    ? automationConfig.action
-    : [automationConfig.action];
-  const action = actions.find((a: any) => a.service?.includes("vacuum_clean_segment"));
-  const rooms = action?.data?.segments || [];
+  // Извлекаем комнаты из action/actions
+  // Поддерживаем оба варианта: action (единственное) и actions (множественное)
+  // Безопасная обработка действий с проверкой на undefined/null
+  const actionData = automationConfig.action || automationConfig.actions;
+  if (!actionData) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет действий`);
+    return null;
+  }
+  
+  const actions = Array.isArray(actionData)
+    ? actionData.filter((a: any) => a != null) // Фильтруем undefined/null
+    : actionData != null
+    ? [actionData]
+    : [];
+  
+  if (actions.length === 0) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не имеет валидных действий`);
+    return null;
+  }
+  
+  // Ищем действие с vacuum_clean_segment
+  // Поддерживаем оба варианта: service (наш формат) и action (формат Home Assistant)
+  const action = actions.find((a: any) => {
+    if (!a) return false;
+    // Проверяем оба варианта: service и action
+    const service = a.service || a.action;
+    return service && typeof service === "string" && service.includes("vacuum_clean_segment");
+  });
+  
+  if (!action) {
+    console.warn(`[Vacuum Schedule Card] Автоматизация ${configId} не содержит действия vacuum_clean_segment`);
+    return null;
+  }
+  
+  // Извлекаем сегменты из data.segments
+  // Поддерживаем массив сегментов
+  const segments = action.data?.segments;
+  const rooms = Array.isArray(segments) ? segments : segments ? [segments] : [];
+  
+  console.log(`[Vacuum Schedule Card] Извлечены комнаты из автоматизации ${configId}:`, rooms);
 
   return {
     scheduleId,
