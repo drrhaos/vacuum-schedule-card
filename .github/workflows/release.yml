@@ -11,7 +11,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,12 +28,71 @@ jobs:
       - name: Build
         run: npm run build
       
+      - name: Verify build output
+        run: |
+          if [ ! -f "dist/vacuum-schedule-card.js" ]; then
+            echo "Error: Build failed - dist/vacuum-schedule-card.js not found"
+            exit 1
+          fi
+          echo "Build successful"
+          ls -lh dist/vacuum-schedule-card.js
+      
+      - name: Extract version from tag
+        id: tag
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${TAG_NAME#v}" >> $GITHUB_OUTPUT
+          echo "Tag: ${TAG_NAME}"
+          echo "Version: ${TAG_NAME#v}"
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          
+          # Try to extract notes from CHANGELOG.md if it exists
+          if [ -f "CHANGELOG.md" ]; then
+            # Extract section for this version (between ## [version] and next ##)
+            # Use sed to extract from "## [version]" to next "##" (excluding the next ## line)
+            NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## /p" CHANGELOG.md | sed '$d' || echo "")
+            if [ -n "$NOTES" ] && [ "$NOTES" != "## [${VERSION}]" ]; then
+              echo "notes<<EOF" >> $GITHUB_OUTPUT
+              echo "$NOTES" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            else
+              echo "notes=Release ${TAG_NAME}" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "notes=Release ${TAG_NAME}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Verify release files exist
+        run: |
+          echo "Checking release files..."
+          test -f dist/vacuum-schedule-card.js && echo "✓ dist/vacuum-schedule-card.js" || (echo "✗ dist/vacuum-schedule-card.js missing" && exit 1)
+          test -f README.md && echo "✓ README.md" || echo "⚠ README.md missing (optional)"
+          test -f README.ru.md && echo "✓ README.ru.md" || echo "⚠ README.ru.md missing (optional)"
+          test -f hacs.json && echo "✓ hacs.json" || (echo "✗ hacs.json missing" && exit 1)
+          test -f LICENSE && echo "✓ LICENSE" || echo "⚠ LICENSE missing (optional)"
+      
       - name: Create Release
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: Release ${{ steps.tag.outputs.tag_name }}
+          body: ${{ steps.release_notes.outputs.notes }}
           files: |
             dist/vacuum-schedule-card.js
             README.md
+            README.ru.md
             hacs.json
             LICENSE
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          fail_on_unmatched_files: true
 
