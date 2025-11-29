@@ -402,12 +402,12 @@ class VacuumScheduleCard extends LitElement {
         max-width: 100%;
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
         position: relative;
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
-        border-radius: 8px;
+        border-radius: var(--ha-card-border-radius, 4px);
         background: var(--card-background-color, var(--ha-card-background, #fff));
-        box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.08));
-        padding: 8px 4px;
+        box-shadow: none;
+        padding: 12px 8px;
         margin: 2px;
         cursor: pointer;
         overflow: hidden;
@@ -415,26 +415,15 @@ class VacuumScheduleCard extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-      }
-      .room-button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--primary-color);
-        opacity: 0;
-        transition: opacity 0.15s ease;
-        pointer-events: none;
+        min-height: 60px;
       }
       .room-button .button-content {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        padding: 4px 2px;
+        gap: 6px;
+        padding: 0;
         position: relative;
         z-index: 1;
         width: 100%;
@@ -444,84 +433,68 @@ class VacuumScheduleCard extends LitElement {
       .room-button .button-icon {
         font-size: 24px;
         line-height: 1;
-        transition: transform 0.15s ease, filter 0.15s ease;
-        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        transition: none;
         max-width: 100%;
         max-height: 28px;
         overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--primary-text-color);
       }
       .room-button .button-label {
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         line-height: 1.2;
         text-align: center;
         color: var(--primary-text-color);
-        transition: color 0.15s ease;
+        transition: color 0.2s ease;
         width: 100%;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        padding: 0 2px;
+        padding: 0 4px;
         box-sizing: border-box;
       }
       .room-button .button-id {
         font-size: 10px;
-        opacity: 0.6;
+        opacity: 0.7;
         line-height: 1;
         font-family: monospace;
         color: var(--secondary-text-color);
-        transition: opacity 0.15s ease, color 0.15s ease;
+        transition: opacity 0.2s ease, color 0.2s ease;
         width: 100%;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        padding: 0 2px;
+        padding: 0 4px;
         box-sizing: border-box;
       }
       .room-button.pressed {
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
         background: var(--primary-color, var(--mdc-theme-primary));
         border-color: var(--primary-color, var(--mdc-theme-primary));
-        box-shadow: inset 0 2px 8px rgba(0,0,0,0.2), 
-                    var(--ha-card-box-shadow, 0 1px 2px rgba(0,0,0,0.1));
-        transform: translateY(1px);
-      }
-      .room-button.pressed::before {
-        opacity: 0.1;
+        box-shadow: none;
       }
       .room-button.pressed .button-icon {
-        transform: scale(1.05);
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        max-height: 28px;
+        color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
       }
       .room-button.pressed .button-label {
         color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
-        font-weight: 700;
+        font-weight: 500;
       }
       .room-button.pressed .button-id {
         opacity: 0.9;
         color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
       }
       .room-button:active:not(.pressed) {
-        transform: translateY(2px) scale(0.98);
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.1)));
       }
       .room-button:hover:not(.pressed) {
         border-color: var(--primary-color, var(--mdc-theme-primary));
-        box-shadow: var(--ha-card-box-shadow, 0 4px 8px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08));
-        transform: translateY(-1px);
-      }
-      .room-button:hover:not(.pressed)::before {
-        opacity: 0.05;
-      }
-      .room-button:hover:not(.pressed) .button-icon {
-        transform: scale(1.05);
-        max-height: 28px;
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.05)));
       }
       .dialog {
         position: fixed !important;
