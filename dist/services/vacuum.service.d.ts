@@ -18,6 +18,7 @@ export declare class VacuumService implements VacuumControl {
     getStateLabel(state: string): string;
     /**
      * Получает сообщение об ошибке из атрибутов пылесоса
+     * Возвращает undefined, если ошибки нет или нет конкретного сообщения об ошибке
      */
     getError(): string | undefined;
     /**

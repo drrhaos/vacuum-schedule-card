@@ -98,6 +98,11 @@ export class ControlPanel extends LitElement {
     return this._vacuumService?.getState() || "unknown";
   }
 
+  private _isCleaning(): boolean {
+    const state = this._getVacuumState();
+    return state === "cleaning" || this._currentCleaningRooms.length > 0;
+  }
+
   private _isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return"): boolean {
     if (!this._vacuumService) return true;
     const state = this._getVacuumState();
@@ -196,8 +201,8 @@ export class ControlPanel extends LitElement {
   }
 
   private _toggleRoom(roomId: number): void {
-    // Не позволяем изменять состояние комнат, которые сейчас убираются
-    if (this._currentCleaningRooms.includes(roomId)) {
+    // Не позволяем изменять состояние во время уборки
+    if (this._isCleaning()) {
       return;
     }
 
@@ -214,7 +219,7 @@ export class ControlPanel extends LitElement {
 
   private _toggleAllRooms(): void {
     // Не позволяем изменять состояние во время уборки
-    if (this._currentCleaningRooms.length > 0) {
+    if (this._isCleaning()) {
       return;
     }
 
@@ -289,28 +294,36 @@ export class ControlPanel extends LitElement {
         </div>
         <div class="control-row rooms-row">
           ${visibleRooms.length > 0 ? html`
-            <ha-card 
-              class="room-button ${this.selectedRooms.length === 0 && this._currentCleaningRooms.length === 0 ? "pressed" : ""} ${this._currentCleaningRooms.length > 0 ? "disabled" : ""}"
-              @click=${this._currentCleaningRooms.length > 0 ? undefined : this._toggleAllRooms}
-              title="${this._t("all_rooms")}${this._currentCleaningRooms.length > 0 ? " (идет уборка)" : ""}"
-            >
-              <div class="button-content">
-                <div class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</div>
-                <div class="button-label">${this._t("all_rooms")}</div>
-              </div>
-              <ha-ripple></ha-ripple>
-            </ha-card>
+            ${(() => {
+              const isCleaning = this._isCleaning();
+              const isDisabled = isCleaning;
+              
+              return html`
+                <ha-card 
+                  class="room-button ${this.selectedRooms.length === 0 && !isCleaning ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
+                  @click=${isDisabled ? undefined : this._toggleAllRooms}
+                  title="${this._t("all_rooms")}${isDisabled ? " (идет уборка)" : ""}"
+                >
+                  <div class="button-content">
+                    <div class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</div>
+                    <div class="button-label">${this._t("all_rooms")}</div>
+                  </div>
+                  <ha-ripple></ha-ripple>
+                </ha-card>
+              `;
+            })()}
             ${visibleRooms.map((room) => {
-              const isCleaning = this._currentCleaningRooms.includes(room.id);
+              const isCleaning = this._isCleaning();
+              const isRoomCleaning = this._currentCleaningRooms.includes(room.id);
               const isSelected = this.selectedRooms.includes(room.id);
-              const isPressed = isCleaning || isSelected;
+              const isPressed = isRoomCleaning || (isSelected && !isCleaning);
               const isDisabled = isCleaning;
               
               return html`
                 <ha-card 
                   class="room-button ${isPressed ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
                   @click=${isDisabled ? undefined : () => this._toggleRoom(room.id)}
-                  title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}${isCleaning ? " (убирается)" : ""}"
+                  title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}${isRoomCleaning ? " (убирается)" : ""}"
                 >
                   <div class="button-content">
                     <div class="button-icon">${this._renderRoomIcon(room)}</div>

@@ -80,6 +80,7 @@ export class VacuumService implements VacuumControl {
 
   /**
    * Получает сообщение об ошибке из атрибутов пылесоса
+   * Возвращает undefined, если ошибки нет или нет конкретного сообщения об ошибке
    */
   getError(): string | undefined {
     const state = this.hass.states[this.entity];
@@ -90,23 +91,30 @@ export class VacuumService implements VacuumControl {
     const attrs = state.attributes;
 
     // Проверяем различные возможные атрибуты ошибки
+    // Только если есть конкретное сообщение об ошибке
     if (attrs.error) {
-      return typeof attrs.error === "string" ? attrs.error : String(attrs.error);
+      const errorMsg = typeof attrs.error === "string" ? attrs.error : String(attrs.error);
+      // Не показываем пустые строки или общие сообщения
+      if (errorMsg && errorMsg.trim() && errorMsg !== "error" && errorMsg !== "Ошибка") {
+        return errorMsg;
+      }
     }
 
     if (attrs.error_message) {
-      return typeof attrs.error_message === "string" ? attrs.error_message : String(attrs.error_message);
+      const errorMsg = typeof attrs.error_message === "string" ? attrs.error_message : String(attrs.error_message);
+      if (errorMsg && errorMsg.trim() && errorMsg !== "error" && errorMsg !== "Ошибка") {
+        return errorMsg;
+      }
     }
 
     if (attrs.status === "error" && attrs.message) {
-      return typeof attrs.message === "string" ? attrs.message : String(attrs.message);
+      const errorMsg = typeof attrs.message === "string" ? attrs.message : String(attrs.message);
+      if (errorMsg && errorMsg.trim() && errorMsg !== "error" && errorMsg !== "Ошибка") {
+        return errorMsg;
+      }
     }
 
-    // Если состояние "error", но нет конкретного сообщения
-    if (state.state === "error") {
-      return attrs.friendly_name ? `Ошибка: ${attrs.friendly_name}` : "Ошибка";
-    }
-
+    // Не показываем общее сообщение "Ошибка" без конкретной информации
     return undefined;
   }
 

@@ -22,6 +22,7 @@ export declare class ControlPanel extends LitElement {
     private _unsubscribeFromStateChanges;
     private _t;
     private _getVacuumState;
+    private _isCleaning;
     private _isButtonDisabled;
     private _getStateLabel;
     private _getError;
