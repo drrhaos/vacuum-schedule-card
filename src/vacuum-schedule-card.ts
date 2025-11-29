@@ -746,6 +746,18 @@ class VacuumScheduleCard extends LitElement {
     
     // Обновляем автоматизации
     await this._updateAutomationsForSchedule(updatedSchedule, schedule);
+    
+    // Перезагружаем автоматизации
+    try {
+      await this.hass.callService("automation", "reload");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (reloadError) {
+      console.warn("[Vacuum Schedule Card] Не удалось перезагрузить автоматизации:", reloadError);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Перезагружаем расписания для синхронизации
+    await this._loadSchedules();
   }
 
   private async _deleteSchedule(schedule: Schedule): Promise<void> {
@@ -762,6 +774,18 @@ class VacuumScheduleCard extends LitElement {
 
     this._schedules = this._schedules.filter(s => s.id !== schedule.id);
     this.requestUpdate();
+    
+    // Перезагружаем автоматизации
+    try {
+      await this.hass.callService("automation", "reload");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (reloadError) {
+      console.warn("[Vacuum Schedule Card] Не удалось перезагрузить автоматизации:", reloadError);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Перезагружаем расписания для синхронизации
+    await this._loadSchedules();
   }
 
   private async _createAutomation(schedule: Schedule, day: number): Promise<void> {
@@ -778,18 +802,8 @@ class VacuumScheduleCard extends LitElement {
       this._t("schedule_title")
     );
 
-    console.log(`[Vacuum Schedule Card] Создание/обновление автоматизации:`, {
-      id: automation.id,
-      alias: automation.alias,
-      day: day,
-      time: schedule.time,
-      rooms: schedule.rooms,
-    });
-
     const success = await createOrUpdateAutomation(this.hass, automation);
-    if (success) {
-      console.log(`[Vacuum Schedule Card] Автоматизация ${automation.id} успешно создана/обновлена`);
-    } else {
+    if (!success) {
       console.error(`[Vacuum Schedule Card] Не удалось создать/обновить автоматизацию ${automation.id}`);
     }
   }
@@ -801,39 +815,25 @@ class VacuumScheduleCard extends LitElement {
     }
 
     const automationId = `vacuum_schedule_${scheduleId}_day_${day}`;
-    console.log(`[Vacuum Schedule Card] Удаление автоматизации: ${automationId}`);
-    
     const success = await deleteAutomation(this.hass, automationId);
-    if (success) {
-      console.log(`[Vacuum Schedule Card] Автоматизация ${automationId} успешно удалена`);
-    } else {
+    if (!success) {
       console.error(`[Vacuum Schedule Card] Не удалось удалить автоматизацию ${automationId}`);
     }
   }
 
   private async _updateAutomationsInBackground(schedule: Schedule, oldSchedule?: Schedule): Promise<void> {
     try {
-      // Создаем/обновляем автоматизации
-      console.log("[Vacuum Schedule Card] Начало обновления автоматизаций для расписания");
       await this._updateAutomationsForSchedule(schedule, oldSchedule);
-      console.log("[Vacuum Schedule Card] Автоматизации успешно обновлены");
       
-      // Перезагружаем автоматизации для обновления кеша
       try {
-        console.log("[Vacuum Schedule Card] Перезагрузка автоматизаций...");
         await this.hass.callService("automation", "reload");
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log("[Vacuum Schedule Card] Автоматизации перезагружены");
       } catch (reloadError) {
         console.warn("[Vacuum Schedule Card] Не удалось перезагрузить автоматизации:", reloadError);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      // Перезагружаем расписания из автоматизаций для синхронизации
-      console.log("[Vacuum Schedule Card] Перезагрузка расписаний для синхронизации...");
       await this._loadSchedules();
-      console.log("[Vacuum Schedule Card] Расписания перезагружены");
-      console.log("[Vacuum Schedule Card] Расписание успешно сохранено");
     } catch (error) {
       console.error("[Vacuum Schedule Card] Ошибка обновления автоматизаций:", error);
       throw error;
@@ -841,59 +841,40 @@ class VacuumScheduleCard extends LitElement {
   }
 
   private async _updateAutomationsForSchedule(schedule: Schedule, oldSchedule?: Schedule): Promise<void> {
-    console.log("[Vacuum Schedule Card] Обновление автоматизаций для расписания:", {
-      scheduleId: schedule.id,
-      enabled: schedule.enabled,
-      days: schedule.days,
-      oldDays: oldSchedule?.days,
-    });
-
     if (!schedule.enabled) {
-      console.log("[Vacuum Schedule Card] Расписание отключено, удаляем все автоматизации");
       const daysToDelete = oldSchedule ? oldSchedule.days : schedule.days;
-      console.log(`[Vacuum Schedule Card] Дней для удаления: ${daysToDelete.length}`);
       for (const day of daysToDelete) {
         await this._deleteAutomation(schedule.id, day);
       }
       return;
     }
 
-    // Удаляем старые автоматизации, если расписание редактировалось
     if (oldSchedule) {
       const daysToRemove = oldSchedule.days.filter(d => !schedule.days.includes(d));
       if (daysToRemove.length > 0) {
-        console.log(`[Vacuum Schedule Card] Удаление автоматизаций для дней, которые больше не в расписании: ${daysToRemove.join(", ")}`);
         for (const day of daysToRemove) {
           await this._deleteAutomation(schedule.id, day);
         }
       }
     }
 
-    // Создаем/обновляем автоматизации для каждого дня
-    console.log(`[Vacuum Schedule Card] Создание/обновление автоматизаций для ${schedule.days.length} дней`);
     for (const day of schedule.days) {
       await this._createAutomation(schedule, day);
     }
-    console.log("[Vacuum Schedule Card] Все автоматизации для расписания обновлены");
   }
 
   private async _saveSchedule(): Promise<void> {
-    console.log("[Vacuum Schedule Card] Начало сохранения расписания");
-    
     if (!this._newSchedule.days || this._newSchedule.days.length === 0) {
-      console.warn("[Vacuum Schedule Card] Ошибка: не выбраны дни");
       this._error = this._t("error_no_days");
       return;
     }
 
     if (!this._newSchedule.time) {
-      console.warn("[Vacuum Schedule Card] Ошибка: не указано время");
       this._error = this._t("error_no_time");
       return;
     }
 
     if (!this.hass) {
-      console.warn("[Vacuum Schedule Card] Ошибка: hass недоступен");
       this._error = this._t("error_no_hass");
       return;
     }
@@ -907,15 +888,6 @@ class VacuumScheduleCard extends LitElement {
       name: this._newSchedule.name,
     };
 
-    const isEdit = !!this._editingSchedule;
-    console.log(`[Vacuum Schedule Card] ${isEdit ? "Обновление" : "Создание"} расписания:`, {
-      id: schedule.id,
-      time: schedule.time,
-      days: schedule.days,
-      rooms: schedule.rooms,
-      enabled: schedule.enabled,
-    });
-
     let schedules = [...this._schedules];
     const oldSchedule = this._editingSchedule;
     
@@ -923,22 +895,16 @@ class VacuumScheduleCard extends LitElement {
       const index = schedules.findIndex(s => s.id === this._editingSchedule!.id);
       if (index > -1) {
         schedules[index] = schedule;
-        console.log(`[Vacuum Schedule Card] Расписание обновлено в списке (индекс ${index})`);
       }
     } else {
       schedules.push(schedule);
-      console.log(`[Vacuum Schedule Card] Расписание добавлено в список (всего: ${schedules.length})`);
     }
 
-    // Обновляем локальное состояние и закрываем диалог сразу
     this._schedules = schedules;
     this._closeDialog();
     this._error = undefined;
     this.requestUpdate();
     
-    console.log("[Vacuum Schedule Card] Расписание добавлено в список, создание автоматизаций в фоне...");
-    
-    // Создаем/обновляем автоматизации в фоне (не блокируем UI)
     this._updateAutomationsInBackground(schedule, oldSchedule).catch((error) => {
       console.error("[Vacuum Schedule Card] Ошибка создания автоматизаций:", error);
       this._error = `${this._t("error_saving")} ${error}`;
