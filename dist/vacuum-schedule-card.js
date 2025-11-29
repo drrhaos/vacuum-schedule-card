@@ -133,6 +133,11 @@ function t(t,e,o,r){var i,s=arguments.length,a=s<3?e:null===r?r=Object.getOwnPro
         --mdc-button-outline-width: 1px;
         --mdc-button-outline-color: var(--divider-color, var(--ha-card-border-color));
         --mdc-ripple-color: transparent;
+        --ha-ripple-color: var(--primary-color, var(--mdc-theme-primary));
+        --ha-ripple-hover-color: var(--ha-ripple-color);
+        --ha-ripple-pressed-color: var(--ha-ripple-color);
+        --ha-ripple-hover-opacity: 0.04;
+        --ha-ripple-pressed-opacity: 0.12;
         position: relative;
         transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         border: 1px solid var(--divider-color, var(--ha-card-border-color)) !important;
@@ -148,7 +153,13 @@ function t(t,e,o,r){var i,s=arguments.length,a=s<3?e:null===r?r=Object.getOwnPro
         align-items: center;
         justify-content: center;
         min-height: 80px;
-        -webkit-tap-highlight-color: var(--divider-color, var(--ha-card-border-color));
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
         touch-action: manipulation;
       }
       .room-button::part(button),
@@ -238,25 +249,29 @@ function t(t,e,o,r){var i,s=arguments.length,a=s<3?e:null===r?r=Object.getOwnPro
         color: var(--text-primary-color, var(--mdc-theme-on-primary));
       }
       .room-button:active:not(.pressed) {
-        background: var(--divider-color, var(--ha-card-border-color)) !important;
-        opacity: 0.6;
+        transform: scale(0.98);
+        background: var(--primary-color, var(--mdc-theme-primary)) !important;
+        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        opacity: var(--ha-ripple-pressed-opacity, 0.12);
       }
       .room-button:active:not(.pressed)::part(button),
       .room-button:active:not(.pressed)::part(native-button) {
-        background: var(--divider-color, var(--ha-card-border-color)) !important;
-        opacity: 0.6;
+        transform: scale(0.98);
+        background: var(--primary-color, var(--mdc-theme-primary)) !important;
+        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        opacity: var(--ha-ripple-pressed-opacity, 0.12);
       }
       @media (hover: hover) and (pointer: fine) {
         .room-button:hover:not(.pressed) {
           border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-          background: var(--divider-color, var(--ha-card-border-color)) !important;
-          opacity: 0.8;
+          background: var(--primary-color, var(--mdc-theme-primary)) !important;
+          opacity: var(--ha-ripple-hover-opacity, 0.04);
         }
         .room-button:hover:not(.pressed)::part(button),
         .room-button:hover:not(.pressed)::part(native-button) {
           border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
-          background: var(--divider-color, var(--ha-card-border-color)) !important;
-          opacity: 0.8;
+          background: var(--primary-color, var(--mdc-theme-primary)) !important;
+          opacity: var(--ha-ripple-hover-opacity, 0.04);
         }
       }
       .content {
