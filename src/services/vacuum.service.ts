@@ -50,16 +50,38 @@ export class VacuumService implements VacuumControl {
   }
 
   /**
-   * Получает статус pylesos_state из атрибутов пылесоса
+   * Получает статус pylesos_state из сущности sensor.pylesos_state
    */
   getPylesosState(): string | undefined {
+    // Сначала проверяем отдельную сущность sensor.pylesos_state
+    const sensorState = this.hass.states["sensor.pylesos_state"];
+    if (sensorState && sensorState.state) {
+      const stateValue = String(sensorState.state).trim();
+      const normalized = stateValue.toLowerCase().replace(/\s+/g, "");
+      // Не показываем пустые значения или сообщения об отсутствии ошибок
+      const nonErrorValues = ["noerror", "нетешибок", "none", "нет", "null", "undefined", "unknown", "неизвестно", ""];
+      if (stateValue && !nonErrorValues.includes(normalized)) {
+        return stateValue;
+      }
+    }
+    
+    // Если не нашли в отдельной сущности, проверяем атрибуты пылесоса
     const state = this.hass.states[this.entity];
     if (!state || !state.attributes) {
       return undefined;
     }
-    const pylesosState = state.attributes.pylesos_state;
-    if (typeof pylesosState === "string") {
-      return pylesosState;
+    const attrs = state.attributes;
+    
+    // Проверяем различные возможные варианты названия атрибута
+    const pylesosState = attrs.pylesos_state || attrs.pylesosState || attrs["pylesos_state"];
+    
+    if (typeof pylesosState === "string" && pylesosState.trim()) {
+      const normalized = pylesosState.trim().toLowerCase().replace(/\s+/g, "");
+      // Не показываем пустые значения или сообщения об отсутствии ошибок
+      const nonErrorValues = ["noerror", "нетешибок", "none", "нет", "null", "undefined", "unknown", "неизвестно", ""];
+      if (!nonErrorValues.includes(normalized)) {
+        return pylesosState.trim();
+      }
     }
     return undefined;
   }
@@ -105,42 +127,48 @@ export class VacuumService implements VacuumControl {
 
     const attrs = state.attributes;
 
+    // Список значений, которые не являются реальными ошибками
+    const nonErrorValues = [
+      "error", "ошибка", 
+      "no error", "нет ошибок", "noerror", "нетешибок",
+      "none", "нет", "null", "undefined", ""
+    ];
+
     // Проверяем различные возможные атрибуты ошибки
     // Только если есть конкретное сообщение об ошибке
     if (attrs.error) {
       const errorMsg = typeof attrs.error === "string" ? attrs.error : String(attrs.error);
-      // Не показываем пустые строки, общие сообщения или сообщения об отсутствии ошибок
-      const normalizedMsg = errorMsg.trim().toLowerCase();
-      if (errorMsg && errorMsg.trim() && 
-          normalizedMsg !== "error" && 
-          normalizedMsg !== "ошибка" &&
-          normalizedMsg !== "no error" &&
-          normalizedMsg !== "нет ошибок") {
-        return errorMsg;
+      const normalizedMsg = errorMsg.trim().toLowerCase().replace(/\s+/g, "");
+      if (errorMsg && errorMsg.trim() && !nonErrorValues.includes(normalizedMsg)) {
+        return errorMsg.trim();
       }
     }
 
     if (attrs.error_message) {
       const errorMsg = typeof attrs.error_message === "string" ? attrs.error_message : String(attrs.error_message);
-      const normalizedMsg = errorMsg.trim().toLowerCase();
-      if (errorMsg && errorMsg.trim() && 
-          normalizedMsg !== "error" && 
-          normalizedMsg !== "ошибка" &&
-          normalizedMsg !== "no error" &&
-          normalizedMsg !== "нет ошибок") {
-        return errorMsg;
+      const normalizedMsg = errorMsg.trim().toLowerCase().replace(/\s+/g, "");
+      if (errorMsg && errorMsg.trim() && !nonErrorValues.includes(normalizedMsg)) {
+        return errorMsg.trim();
       }
     }
 
     if (attrs.status === "error" && attrs.message) {
       const errorMsg = typeof attrs.message === "string" ? attrs.message : String(attrs.message);
-      const normalizedMsg = errorMsg.trim().toLowerCase();
-      if (errorMsg && errorMsg.trim() && 
-          normalizedMsg !== "error" && 
-          normalizedMsg !== "ошибка" &&
-          normalizedMsg !== "no error" &&
-          normalizedMsg !== "нет ошибок") {
-        return errorMsg;
+      const normalizedMsg = errorMsg.trim().toLowerCase().replace(/\s+/g, "");
+      if (errorMsg && errorMsg.trim() && !nonErrorValues.includes(normalizedMsg)) {
+        return errorMsg.trim();
+      }
+    }
+    
+    // Проверяем также другие возможные атрибуты
+    const otherErrorAttrs = ["error_code", "error_code_str", "last_error"];
+    for (const attrName of otherErrorAttrs) {
+      if (attrs[attrName]) {
+        const errorMsg = typeof attrs[attrName] === "string" ? attrs[attrName] : String(attrs[attrName]);
+        const normalizedMsg = errorMsg.trim().toLowerCase().replace(/\s+/g, "");
+        if (errorMsg && errorMsg.trim() && !nonErrorValues.includes(normalizedMsg)) {
+          return errorMsg.trim();
+        }
       }
     }
 
