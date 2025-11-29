@@ -29,3 +29,12 @@ export interface Translations {
   };
 }
 
+// Реэкспорт типов автоматизаций
+export type {
+  AutomationConfig,
+  AutomationTrigger,
+  AutomationCondition,
+  AutomationAction,
+  AutomationState,
+} from "./types/automation";
+

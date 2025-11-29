@@ -5,6 +5,7 @@ import type { VacuumScheduleCardConfig, Schedule, Room } from "./types";
 import { ScheduleService } from "./services/schedule.service";
 import { loadRooms } from "./utils/rooms";
 import { translate } from "./utils/i18n";
+import { subscribeToStateChangesByPattern } from "./utils/event-subscription";
 import "./components/control-panel";
 import "./components/schedule-list";
 import "./components/schedule-dialog";
@@ -49,54 +50,28 @@ class VacuumScheduleCard extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._unsubscribeAutomations && typeof this._unsubscribeAutomations === "function") {
-      try {
-        this._unsubscribeAutomations();
-      } catch (error) {
-        console.warn("Ошибка при отписке от изменений автоматизаций:", error);
-      }
+    if (this._unsubscribeAutomations) {
+      this._unsubscribeAutomations();
       this._unsubscribeAutomations = undefined;
     }
   }
 
   private _subscribeToAutomationChanges(): void {
-    if (!this.hass?.connection) return;
-
     if (this._unsubscribeAutomations) {
-      try {
-        this._unsubscribeAutomations();
-      } catch (e) {
-        // Игнорируем ошибки при отписке
-      }
+      this._unsubscribeAutomations();
       this._unsubscribeAutomations = undefined;
     }
 
-    try {
-      if (this.hass.connection && typeof (this.hass.connection as any).subscribeEvents === "function") {
-        try {
-          const unsubscribe = (this.hass.connection as any).subscribeEvents(
-            (event: any) => {
-              const entityId = event.event?.data?.entity_id;
-              if (entityId && entityId.startsWith("automation.vacuum_schedule_")) {
-                this._loadSchedules();
-              }
-            },
-            "state_changed"
-          );
-          
-          if (typeof unsubscribe === "function") {
-            this._unsubscribeAutomations = unsubscribe;
-          } else {
-            this._unsubscribeAutomations = () => {
-              // Отписка происходит автоматически при переподключении
-            };
-          }
-        } catch (error: any) {
-          console.warn("Не удалось подписаться на события:", error);
-        }
+    const subscription = subscribeToStateChangesByPattern(
+      this.hass,
+      "automation.vacuum_schedule_",
+      () => {
+        this._loadSchedules();
       }
-    } catch (error) {
-      console.warn("Не удалось подписаться на изменения автоматизаций:", error);
+    );
+
+    if (subscription) {
+      this._unsubscribeAutomations = subscription.unsubscribe;
     }
   }
 

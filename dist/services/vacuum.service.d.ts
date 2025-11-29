@@ -14,6 +14,10 @@ export declare class VacuumService implements VacuumControl {
     pause(): Promise<void>;
     returnToBase(): Promise<void>;
     getState(): string;
+    /**
+     * Получает статус pylesos_state из атрибутов пылесоса
+     */
+    getPylesosState(): string | undefined;
     isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return", vacuumState: string): boolean;
     getStateLabel(state: string): string;
     /**

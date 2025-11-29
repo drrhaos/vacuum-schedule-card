@@ -6,6 +6,7 @@ import type { Room } from "../types";
 import { VacuumService } from "../services/vacuum.service";
 import { translate } from "../utils/i18n";
 import { getVacuumRobotSVG } from "../utils/svg-loader";
+import { subscribeToStateChanges } from "../utils/event-subscription";
 
 @customElement("vacuum-control-panel")
 export class ControlPanel extends LitElement {
@@ -55,37 +56,23 @@ export class ControlPanel extends LitElement {
 
   private _subscribeToStateChanges(): void {
     this._unsubscribeFromStateChanges();
-    
-    if (!this.hass?.connection) return;
 
-    try {
-      if (typeof (this.hass.connection as any).subscribeEvents === "function") {
-        const unsubscribe = (this.hass.connection as any).subscribeEvents(
-          (event: any) => {
-            const entityId = event.event?.data?.entity_id;
-            if (entityId === this.entity) {
-              this._updateCleaningRooms();
-            }
-          },
-          "state_changed"
-        );
-        
-        if (typeof unsubscribe === "function") {
-          this._unsubscribeStateChanges = unsubscribe;
-        }
+    const subscription = subscribeToStateChanges(
+      this.hass,
+      this.entity,
+      () => {
+        this._updateCleaningRooms();
       }
-    } catch (error) {
-      console.warn("[Vacuum Schedule Card] Ошибка подписки на изменения состояния пылесоса:", error);
+    );
+
+    if (subscription) {
+      this._unsubscribeStateChanges = subscription.unsubscribe;
     }
   }
 
   private _unsubscribeFromStateChanges(): void {
     if (this._unsubscribeStateChanges) {
-      try {
-        this._unsubscribeStateChanges();
-      } catch (error) {
-        // Игнорируем ошибки при отписке
-      }
+      this._unsubscribeStateChanges();
       this._unsubscribeStateChanges = undefined;
     }
   }
@@ -113,6 +100,11 @@ export class ControlPanel extends LitElement {
     if (!this._vacuumService) return "Неизвестно";
     const state = this._getVacuumState();
     return this._vacuumService.getStateLabel(state);
+  }
+
+  private _getPylesosState(): string | undefined {
+    if (!this._vacuumService) return undefined;
+    return this._vacuumService.getPylesosState();
   }
 
   private _getError(): string | undefined {
@@ -249,6 +241,9 @@ export class ControlPanel extends LitElement {
           <span class="status-icon ${vacuumState === "cleaning" ? "cleaning" : ""}">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
           <div class="status-info">
             <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
+            ${this._getPylesosState() ? html`
+              <span class="status-pylesos">pylesos_state: <strong>${this._getPylesosState()}</strong></span>
+            ` : ""}
             ${this._getError() ? html`
               <span class="status-error">${this._getError()}</span>
             ` : ""}
@@ -395,6 +390,14 @@ export class ControlPanel extends LitElement {
       .status-text {
         display: inline-flex;
         align-items: center;
+      }
+      .status-pylesos {
+        display: inline-flex;
+        align-items: center;
+        color: var(--secondary-text-color);
+        font-size: 11px;
+        font-weight: 500;
+        margin-top: 2px;
       }
       .status-error {
         display: inline-flex;

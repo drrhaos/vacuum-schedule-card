@@ -49,6 +49,21 @@ export class VacuumService implements VacuumControl {
     return state?.state || "unknown";
   }
 
+  /**
+   * Получает статус pylesos_state из атрибутов пылесоса
+   */
+  getPylesosState(): string | undefined {
+    const state = this.hass.states[this.entity];
+    if (!state || !state.attributes) {
+      return undefined;
+    }
+    const pylesosState = state.attributes.pylesos_state;
+    if (typeof pylesosState === "string") {
+      return pylesosState;
+    }
+    return undefined;
+  }
+
   isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return", vacuumState: string): boolean {
     switch (buttonType) {
       case "start":
@@ -94,22 +109,37 @@ export class VacuumService implements VacuumControl {
     // Только если есть конкретное сообщение об ошибке
     if (attrs.error) {
       const errorMsg = typeof attrs.error === "string" ? attrs.error : String(attrs.error);
-      // Не показываем пустые строки или общие сообщения
-      if (errorMsg && errorMsg.trim() && errorMsg !== "error" && errorMsg !== "Ошибка") {
+      // Не показываем пустые строки, общие сообщения или сообщения об отсутствии ошибок
+      const normalizedMsg = errorMsg.trim().toLowerCase();
+      if (errorMsg && errorMsg.trim() && 
+          normalizedMsg !== "error" && 
+          normalizedMsg !== "ошибка" &&
+          normalizedMsg !== "no error" &&
+          normalizedMsg !== "нет ошибок") {
         return errorMsg;
       }
     }
 
     if (attrs.error_message) {
       const errorMsg = typeof attrs.error_message === "string" ? attrs.error_message : String(attrs.error_message);
-      if (errorMsg && errorMsg.trim() && errorMsg !== "error" && errorMsg !== "Ошибка") {
+      const normalizedMsg = errorMsg.trim().toLowerCase();
+      if (errorMsg && errorMsg.trim() && 
+          normalizedMsg !== "error" && 
+          normalizedMsg !== "ошибка" &&
+          normalizedMsg !== "no error" &&
+          normalizedMsg !== "нет ошибок") {
         return errorMsg;
       }
     }
 
     if (attrs.status === "error" && attrs.message) {
       const errorMsg = typeof attrs.message === "string" ? attrs.message : String(attrs.message);
-      if (errorMsg && errorMsg.trim() && errorMsg !== "error" && errorMsg !== "Ошибка") {
+      const normalizedMsg = errorMsg.trim().toLowerCase();
+      if (errorMsg && errorMsg.trim() && 
+          normalizedMsg !== "error" && 
+          normalizedMsg !== "ошибка" &&
+          normalizedMsg !== "no error" &&
+          normalizedMsg !== "нет ошибок") {
         return errorMsg;
       }
     }

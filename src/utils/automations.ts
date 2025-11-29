@@ -1,5 +1,12 @@
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
+import type {
+  AutomationConfig,
+  AutomationTrigger,
+  AutomationCondition,
+  AutomationAction,
+  AutomationState,
+} from "../types/automation";
 import {
   createOrUpdateAutomationREST,
   deleteAutomationREST,
@@ -20,8 +27,8 @@ export async function reloadAutomations(hass: HomeAssistant): Promise<void> {
 /**
  * Фильтрует hass.states для получения автоматизаций расписаний
  */
-function filterScheduleAutomations(hass: HomeAssistant): any[] {
-  const filteredAutomations: any[] = [];
+function filterScheduleAutomations(hass: HomeAssistant): AutomationConfig[] {
+  const filteredAutomations: AutomationConfig[] = [];
   
   for (const entityId in hass.states) {
     if (!entityId.startsWith("automation.")) {
@@ -40,12 +47,12 @@ function filterScheduleAutomations(hass: HomeAssistant): any[] {
     
     filteredAutomations.push({
       id: automationId,
-      alias: state.attributes.friendly_name || automationId,
+      alias: (state.attributes.friendly_name as string) || automationId,
       _entity_id: entityId,
       _state: state.state,
       _attributes: state.attributes,
       _from_states: true,
-    });
+    } as AutomationConfig);
   }
   
   return filteredAutomations;
@@ -53,33 +60,33 @@ function filterScheduleAutomations(hass: HomeAssistant): any[] {
 
 export async function getScheduleAutomations(
   hass: HomeAssistant
-): Promise<any[]> {
+): Promise<AutomationConfig[]> {
   try {
     const filteredFromStates = filterScheduleAutomations(hass);
     
     if (filteredFromStates.length > 0) {
-      const automationConfigs: any[] = [];
+      const automationConfigs: AutomationConfig[] = [];
       
       for (const filteredAutomation of filteredFromStates) {
         const automationId = filteredAutomation.id;
         
         try {
-          let config: any = null;
+          let config: AutomationConfig | null = null;
           
           try {
-            config = await hass.callWS<any>({
+            config = await hass.callWS<AutomationConfig>({
               type: "config/automation/config/get",
               automation_id: automationId,
             });
           } catch (e1: any) {
             try {
-              config = await hass.callWS<any>({
+              config = await hass.callWS<AutomationConfig>({
                 type: "config/automation/get",
                 automation_id: automationId,
               });
             } catch (e2: any) {
               try {
-                config = await hass.callWS<any>({
+                config = await hass.callWS<AutomationConfig>({
                   type: "automation/get",
                   automation_id: automationId,
                 });
@@ -132,9 +139,9 @@ export async function getScheduleAutomations(
 export async function getAutomationConfig(
   hass: HomeAssistant,
   automationId: string
-): Promise<any | null> {
+): Promise<AutomationConfig | null> {
   const scheduleAutomations = await getScheduleAutomations(hass);
-  const automation = scheduleAutomations.find((a: any) => a.id === automationId);
+  const automation = scheduleAutomations.find((a) => a.id === automationId);
   
   return automation || null;
 }
@@ -143,8 +150,8 @@ export async function getAutomationConfig(
  * Парсит расписание из конфигурации автоматизации
  */
 export function parseScheduleFromAutomation(
-  automationConfig: any,
-  automationState: any
+  automationConfig: AutomationConfig,
+  automationState: AutomationState | null
 ): { scheduleId: string; day: number; time: string; rooms: number[]; enabled: boolean } | null {
   const configId = automationConfig.id || "";
   if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
@@ -235,7 +242,7 @@ export async function createOrUpdateAutomation(
 ): Promise<boolean> {
   try {
     const scheduleAutomations = await getScheduleAutomations(hass);
-    const existingAutomation = scheduleAutomations.find((a: any) => a.id === automation.id);
+    const existingAutomation = scheduleAutomations.find((a) => a.id === automation.id);
     const isUpdate = !!existingAutomation;
 
     const restSuccess = await createOrUpdateAutomationREST(hass, automation);
@@ -348,7 +355,7 @@ export function createAutomationFromSchedule(
   entity: string,
   dayNames: string[],
   scheduleTitle: string
-): any {
+): AutomationConfig {
   const automationId = `vacuum_schedule_${schedule.id}_day_${day}`;
   const dayName = getWeekdayName(day);
   const [hours, minutes] = schedule.time.split(":").map(Number);

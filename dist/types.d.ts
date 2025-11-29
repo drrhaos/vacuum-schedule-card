@@ -27,3 +27,4 @@ export interface Translations {
         [key: string]: string;
     };
 }
+export type { AutomationConfig, AutomationTrigger, AutomationCondition, AutomationAction, AutomationState, } from "./types/automation";
