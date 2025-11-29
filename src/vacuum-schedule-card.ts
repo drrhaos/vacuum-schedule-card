@@ -367,6 +367,12 @@ class VacuumScheduleCard extends LitElement {
         border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
         border-radius: 4px;
       }
+      .control-panel-status {
+        font-size: 12px;
+        color: var(--secondary-text-color);
+        margin-bottom: 12px;
+        text-align: center;
+      }
       .control-row {
         display: flex;
         gap: 8px;
@@ -379,6 +385,10 @@ class VacuumScheduleCard extends LitElement {
       .control-button {
         flex: 1;
         min-width: 100px;
+      }
+      .control-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
       .rooms-row {
         margin-top: 12px;
@@ -565,35 +575,90 @@ class VacuumScheduleCard extends LitElement {
     return this._config?.room_icons?.[roomId] || "🏠";
   }
 
-  private _renderControlPanel() {
+  private _getVacuumState(): string {
+    if (!this.hass || !this.entity) return "unknown";
+    const state = this.hass.states[this.entity];
+    return state?.state || "unknown";
+  }
+
+  private _isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return", vacuumState: string): boolean {
+    switch (buttonType) {
+      case "start":
+        // Неактивна если уборка идет или возвращается на базу
+        // Активна если idle, docked, paused (можно запустить/возобновить)
+        return vacuumState === "cleaning" || vacuumState === "returning";
+      case "stop":
+        // Неактивна если пылесос не работает (idle, docked, returning, unknown)
+        // Активна только если cleaning или paused
+        return vacuumState === "idle" || vacuumState === "docked" || 
+               vacuumState === "returning" || vacuumState === "unknown";
+      case "pause":
+        // Неактивна если не убирает (idle, docked, paused, returning, unknown)
+        // Активна только если cleaning (можно поставить на паузу)
+        return vacuumState !== "cleaning";
+      case "return":
+        // Неактивна если уже на базе или возвращается
+        // Активна если cleaning, paused, idle
+        return vacuumState === "docked" || vacuumState === "returning";
+      default:
+        return false;
+    }
+  }
+
+  private _getStateLabel(state: string): string {
+    const labels: Record<string, string> = {
+      "cleaning": "Уборка",
+      "docked": "На базе",
+      "idle": "Ожидание",
+      "paused": "На паузе",
+      "returning": "Возврат на базу",
+      "error": "Ошибка",
+      "unknown": "Неизвестно"
+    };
+    return labels[state] || state;
+  }
+
+  private _renderControlPanel(vacuumState: string) {
+    const isStartDisabled = this._isButtonDisabled("start", vacuumState);
+    const isStopDisabled = this._isButtonDisabled("stop", vacuumState);
+    const isPauseDisabled = this._isButtonDisabled("pause", vacuumState);
+    const isReturnDisabled = this._isButtonDisabled("return", vacuumState);
+
     return html`
       <div class="control-panel">
+        <div class="control-panel-status">
+          Статус: <strong>${this._getStateLabel(vacuumState)}</strong>
+        </div>
         <div class="control-row">
           <ha-button 
             class="control-button"
-            @click=${() => this._startVacuum()}
-            title="${this._t("start") || "Запуск"}"
+            .disabled=${isStartDisabled}
+            @click=${() => !isStartDisabled && this._startVacuum()}
+            title="${isStartDisabled ? this._t("start") + " (недоступно)" : this._t("start") || "Запуск"}"
           >
             ▶️ ${this._t("start") || "Запуск"}
           </ha-button>
           <ha-button 
             class="control-button"
-            @click=${() => this._stopVacuum()}
-            title="${this._t("stop") || "Остановка"}"
+            .disabled=${isStopDisabled}
+            @click=${() => !isStopDisabled && this._stopVacuum()}
+            title="${isStopDisabled ? this._t("stop") + " (недоступно)" : this._t("stop") || "Остановка"}"
           >
             ⏹️ ${this._t("stop") || "Остановка"}
           </ha-button>
           <ha-button 
             class="control-button"
-            @click=${() => this._pauseVacuum()}
-            title="${this._t("pause") || "Пауза"}"
+            .disabled=${isPauseDisabled}
+            @click=${() => !isPauseDisabled && this._pauseVacuum()}
+            title="${isPauseDisabled ? this._t("pause") + " (недоступно)" : this._t("pause") || "Пауза"}"
           >
             ⏸️ ${this._t("pause") || "Пауза"}
           </ha-button>
           <ha-button 
             class="control-button"
-            @click=${() => this._returnToBase()}
-            title="${this._t("return_to_base") || "На станцию"}"
+            .disabled=${isReturnDisabled}
+            @click=${() => !isReturnDisabled && this._returnToBase()}
+            title="${isReturnDisabled ? this._t("return_to_base") + " (недоступно)" : this._t("return_to_base") || "На станцию"}"
           >
             🏠 ${this._t("return_to_base") || "На станцию"}
           </ha-button>
@@ -622,7 +687,7 @@ class VacuumScheduleCard extends LitElement {
                 </span>
               </ha-button>
             `)}
-          ` : html`<div class="content">${this._t("rooms_not_found")}</div>`}
+          ` : html`<div class="content" style="width: 100%; text-align: center; padding: 8px;">${this._t("rooms_not_found")}</div>`}
         </div>
       </div>
     `;
@@ -726,17 +791,19 @@ class VacuumScheduleCard extends LitElement {
       </div>`;
     }
 
+    const vacuumState = state?.state || "unknown";
+
     return html`
       <ha-card>
         <div class="card">
+          ${this._renderControlPanel(vacuumState)}
+          
           <div class="header">
             <span>${this._t("schedule_title")}</span>
             <span>${this._schedules.length} ${this._t("schedules_count")}</span>
           </div>
           
           ${this._error && !this._showAddDialog ? html`<div class="error">${this._error}</div>` : ""}
-          
-          ${this._renderControlPanel()}
           
           ${this._loading
             ? html`<div class="loading">${this._t("loading")}</div>`

@@ -50,6 +50,9 @@ declare class VacuumScheduleCard extends LitElement {
     private _formatRooms;
     private _shouldShowRoomIds;
     private _getRoomIcon;
+    private _getVacuumState;
+    private _isButtonDisabled;
+    private _getStateLabel;
     private _renderControlPanel;
     private _toggleRoom;
     private _toggleAllRooms;
