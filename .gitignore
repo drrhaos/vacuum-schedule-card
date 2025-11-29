@@ -3,6 +3,7 @@ node_modules/
 .DS_Store
 *.js.map
 .env
+example*
 # Keep dist folder for releases
 !dist/
 !dist/vacuum-schedule-card.js

@@ -17,186 +17,170 @@ import {
  * так как это карточка только для отображения сущностей. В нашем проекте мы используем эти функции,
  * так как наша карточка должна управлять автоматизациями расписаний.
  */
+/**
+ * Фильтрует hass.states для получения автоматизаций расписаний
+ * Фильтрует по двум критериям:
+ * 1. entity_id.startsWith("automation.")
+ * 2. attributes.id содержит "vacuum_schedule"
+ */
+function filterAutomationsFromStates(hass: HomeAssistant): any[] {
+  const filteredAutomations: any[] = [];
+  
+  // Проходим по всем состояниям в hass.states
+  for (const entityId in hass.states) {
+    // Критерий 1: entity_id должен начинаться с "automation."
+    if (!entityId.startsWith("automation.")) {
+      continue;
+    }
+    
+    const state = hass.states[entityId];
+    if (!state || !state.attributes) {
+      continue;
+    }
+    
+    // Критерий 2: attributes.id должен содержать "vacuum_schedule"
+    const automationId = state.attributes.id || "";
+    if (!automationId.includes("vacuum_schedule")) {
+      continue;
+    }
+    
+    // Создаем объект конфигурации из состояния
+    filteredAutomations.push({
+      id: automationId,
+      alias: state.attributes.friendly_name || automationId,
+      _entity_id: entityId,
+      _state: state.state,
+      _attributes: state.attributes,
+      _from_states: true, // Помечаем, что получено из hass.states
+    });
+  }
+  
+  console.log(`[Vacuum Schedule Card] Отфильтровано автоматизаций из hass.states: ${filteredAutomations.length}`);
+  return filteredAutomations;
+}
+
 export async function getAllAutomations(
   hass: HomeAssistant
 ): Promise<any[]> {
   try {
-    // Сначала получаем все автоматизации из hass.states (как в lovelace-auto-entities)
-    const automationEntities = Object.keys(hass.states).filter(
-      (entityId) => entityId.startsWith("automation.")
-    );
-    console.log("hass.states", hass.states);
-    console.log("automationEntities", automationEntities);
-    if (automationEntities.length === 0) {
-      return [];
-    }
-
-    // Используем hass.callWS для получения конфигураций автоматизаций
-    // Это стандартный способ, используемый в lovelace-auto-entities
-    const automationConfigs: any[] = [];
+    // Сначала фильтруем hass.states для получения автоматизаций расписаний
+    const filteredFromStates = filterAutomationsFromStates(hass);
     
-    for (const entityId of automationEntities) {
-      const automationId = entityId.replace("automation.", "");
+    // Если нашли автоматизации в hass.states, используем их как основу
+    if (filteredFromStates.length > 0) {
+      console.log(`[Vacuum Schedule Card] Найдено ${filteredFromStates.length} автоматизаций расписаний в hass.states`);
       
-      try {
-        // Используем hass.callWS вместо прямого доступа к connection.sendMessagePromise
-        // Это более надежный и стандартный способ (как в lovelace-auto-entities)
-        // Пробуем разные варианты команд для получения конфигурации
-        let config: any = null;
+      // Теперь пытаемся получить полные конфигурации через WebSocket/REST API
+      const automationConfigs: any[] = [];
+      
+      for (const filteredAutomation of filteredFromStates) {
+        const automationId = filteredAutomation.id;
+        const entityId = filteredAutomation._entity_id;
         
-        // Вариант 1: config/automation/config/get (новый формат)
         try {
-          config = await hass.callWS<any>({
-            type: "config/automation/config/get",
-            automation_id: automationId,
-          });
-        } catch (e1: any) {
-          // Вариант 2: config/automation/get (альтернативный формат)
+          // Пробуем получить полную конфигурацию через WebSocket API
+          let config: any = null;
+          
+          // Вариант 1: config/automation/config/get (новый формат)
           try {
             config = await hass.callWS<any>({
-              type: "config/automation/get",
+              type: "config/automation/config/get",
               automation_id: automationId,
             });
-          } catch (e2: any) {
-            // Вариант 3: automation/get (старый формат)
+          } catch (e1: any) {
+            // Вариант 2: config/automation/get (альтернативный формат)
             try {
               config = await hass.callWS<any>({
-                type: "automation/get",
+                type: "config/automation/get",
                 automation_id: automationId,
               });
-            } catch (e3: any) {
-              // Если все варианты не работают, пробуем получить через REST API
-              console.warn(`[Vacuum Schedule Card] WebSocket команды не работают для ${automationId}, пробуем REST API`);
+            } catch (e2: any) {
+              // Вариант 3: automation/get (старый формат)
               try {
-                const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
-                if (token) {
-                  const baseUrl = window.location.origin;
-                  const apiUrl = `${baseUrl}/api/config/automation/config/${automationId}`;
-                  const response = await fetch(apiUrl, {
-                    method: "GET",
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                      "Content-Type": "application/json",
-                    },
-                  });
-                  if (response.ok) {
-                    config = await response.json();
-                    console.log(`[Vacuum Schedule Card] ✅ Получена конфигурация ${automationId} через REST API`);
+                config = await hass.callWS<any>({
+                  type: "automation/get",
+                  automation_id: automationId,
+                });
+              } catch (e3: any) {
+                // Если все WebSocket варианты не работают, пробуем REST API
+                console.warn(`[Vacuum Schedule Card] WebSocket команды не работают для ${automationId}, пробуем REST API`);
+                try {
+                  const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
+                  if (token) {
+                    const baseUrl = window.location.origin;
+                    const apiUrl = `${baseUrl}/api/config/automation/config/${automationId}`;
+                    const response = await fetch(apiUrl, {
+                      method: "GET",
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                      },
+                    });
+                    if (response.ok) {
+                      config = await response.json();
+                      console.log(`[Vacuum Schedule Card] ✅ Получена конфигурация ${automationId} через REST API`);
+                    }
                   }
-                }
-              } catch (restError: any) {
-                console.warn(`[Vacuum Schedule Card] REST API тоже не сработал для ${automationId}, используем fallback`);
-              }
-              
-              // Если REST API не сработал, используем данные из hass.states (но они неполные)
-              if (!config) {
-                const state = hass.states[entityId];
-                if (state) {
-                  config = {
-                    id: state.attributes?.id || automationId,
-                    alias: state.attributes?.friendly_name || automationId,
-                    _entity_id: entityId,
-                    _state: state.state,
-                    _attributes: state.attributes,
-                    _incomplete: true, // Помечаем как неполную конфигурацию
-                  };
-                  console.warn(`[Vacuum Schedule Card] ⚠️ Используется неполная конфигурация из hass.states для ${automationId}`);
+                } catch (restError: any) {
+                  console.warn(`[Vacuum Schedule Card] REST API тоже не сработал для ${automationId}`);
                 }
               }
             }
           }
-        }
-
-        if (config) {
-          automationConfigs.push(config);
-        }
-      } catch (error: any) {
-        // Для любых других ошибок используем данные из hass.states
-        const state = hass.states[entityId];
-        if (state) {
-          automationConfigs.push({
-            id: state.attributes?.id || automationId,
-            alias: state.attributes?.friendly_name || automationId,
-            _entity_id: entityId,
-            _state: state.state,
-            _attributes: state.attributes,
-          });
+          
+          // Если получили полную конфигурацию, используем её
+          if (config && config.id) {
+            automationConfigs.push(config);
+          } else {
+            // Иначе используем данные из hass.states
+            automationConfigs.push(filteredAutomation);
+          }
+        } catch (error: any) {
+          // При ошибке используем данные из hass.states
+          automationConfigs.push(filteredAutomation);
         }
       }
-    }
-
-    if (automationConfigs.length > 0) {
-      console.log(`[Vacuum Schedule Card] ✅ УСПЕШНО получено ${automationConfigs.length} конфигураций автоматизаций`);
       
-      // Подробное логирование списка автоматизаций с акцентом на ID
-      console.group("[Vacuum Schedule Card] Список всех автоматизаций (фильтрация по ID):");
-      automationConfigs.forEach((config, index) => {
-        const automationId = config.id || config._entity_id || "неизвестно";
-        console.log(`${index + 1}. ID: ${automationId}`);
-        console.log(`   Alias: ${config.alias || config._attributes?.friendly_name || "нет"}`);
-        console.log(`   Entity ID: ${config._entity_id || "нет"}`);
-        console.log(`   State: ${config._state || config.state || "неизвестно"}`);
-        if (config.trigger) {
-          console.log(`   Trigger: ${JSON.stringify(config.trigger).substring(0, 100)}...`);
-        }
-        if (config.action) {
-          console.log(`   Action: ${JSON.stringify(config.action).substring(0, 100)}...`);
-        }
-        if (automationId.includes("vacuum_schedule")) {
-          console.log(`   ⭐ Относится к расписаниям уборки (фильтр по ID: ${automationId})`);
-        }
-      });
-      console.groupEnd();
-      
-      // Подтверждение успешного получения
-      const scheduleAutomations = automationConfigs.filter(config => {
-        const id = config.id || config._entity_id || "";
-        return id.includes("vacuum_schedule");
-      });
-      console.log(`[Vacuum Schedule Card] Найдено автоматизаций расписаний (по ID): ${scheduleAutomations.length}`);
-      
-      return automationConfigs;
-    }
-
-    // Fallback: возвращаем объекты из состояний
-    const fallbackAutomations = automationEntities.map((entityId) => {
-      const state = hass.states[entityId];
-      const automationId = entityId.replace("automation.", "");
-      
-      return {
-        id: state.attributes?.id || automationId,
-        alias: state.attributes?.friendly_name || automationId,
-        _entity_id: entityId,
-        _state: state.state,
-        _attributes: state.attributes,
-      };
-    });
-    
-    // Логирование для fallback
-    console.log(`[Vacuum Schedule Card] ⚠️ Используется fallback: получено ${fallbackAutomations.length} автоматизаций из hass.states`);
-    console.group("[Vacuum Schedule Card] Список автоматизаций (fallback, фильтрация по ID):");
-    fallbackAutomations.forEach((automation, index) => {
-      const automationId = automation.id || "неизвестно";
-      console.log(`${index + 1}. ID: ${automationId}`);
-      console.log(`   Entity ID: ${automation._entity_id}`);
-      console.log(`   Alias: ${automation.alias}`);
-      console.log(`   State: ${automation._state}`);
-      if (automationId.includes("vacuum_schedule")) {
-        console.log(`   ⭐ Относится к расписаниям уборки (фильтр по ID: ${automationId})`);
+      if (automationConfigs.length > 0) {
+        console.log(`[Vacuum Schedule Card] ✅ УСПЕШНО получено ${automationConfigs.length} конфигураций автоматизаций`);
+        
+        // Подробное логирование списка автоматизаций с акцентом на ID
+        console.group("[Vacuum Schedule Card] Список всех автоматизаций (фильтрация по ID):");
+        automationConfigs.forEach((config, index) => {
+          const automationId = config.id || config._entity_id || "неизвестно";
+          console.log(`${index + 1}. ID: ${automationId}`);
+          console.log(`   Alias: ${config.alias || config._attributes?.friendly_name || "нет"}`);
+          console.log(`   Entity ID: ${config._entity_id || "нет"}`);
+          console.log(`   State: ${config._state || config.state || "неизвестно"}`);
+          if (config.trigger || config.triggers) {
+            console.log(`   Trigger: ${JSON.stringify(config.trigger || config.triggers).substring(0, 100)}...`);
+          }
+          if (config.action || config.actions) {
+            console.log(`   Action: ${JSON.stringify(config.action || config.actions).substring(0, 100)}...`);
+          }
+          if (automationId.includes("vacuum_schedule")) {
+            console.log(`   ⭐ Относится к расписаниям уборки (фильтр по ID: ${automationId})`);
+          }
+        });
+        console.groupEnd();
+        
+        // Подтверждение успешного получения
+        const scheduleAutomations = automationConfigs.filter(config => {
+          const id = config.id || config._entity_id || "";
+          return id.includes("vacuum_schedule");
+        });
+        console.log(`[Vacuum Schedule Card] Найдено автоматизаций расписаний (по ID): ${scheduleAutomations.length}`);
+        
+        return automationConfigs;
       }
-    });
-    console.groupEnd();
+    }
     
-    // Подтверждение успешного получения в fallback режиме
-    const scheduleAutomations = fallbackAutomations.filter(automation => {
-      const id = automation.id || "";
-      return id.includes("vacuum_schedule");
-    });
-    console.log(`[Vacuum Schedule Card] Найдено автоматизаций расписаний (по ID, fallback): ${scheduleAutomations.length}`);
-    
-    return fallbackAutomations;
+    // Fallback: если не нашли через фильтрацию, возвращаем пустой массив
+    // (так как нам нужны только автоматизации с vacuum_schedule)
+    console.log(`[Vacuum Schedule Card] ⚠️ Фильтрация по hass.states не дала результатов`);
+    return [];
   } catch (error: any) {
-    console.warn("Ошибка получения списка автоматизаций:", error);
+    console.warn("[Vacuum Schedule Card] Ошибка получения списка автоматизаций:", error);
     return [];
   }
 }
