@@ -56,7 +56,8 @@ export class ControlPanel extends LitElement {
 
   private _renderRoomIcon(room: Room) {
     if (room.id === 0) {
-      return html`🏠`;
+      // Для кнопки "Все комнаты" используем mdi:home
+      return html`<ha-icon .icon=${"mdi:home"}></ha-icon>`;
     }
 
     // 1. Проверяем переопределение в конфигурации
@@ -330,6 +331,10 @@ export class ControlPanel extends LitElement {
         border: 1px solid var(--divider-color, var(--ha-card-border-color)) !important;
         box-shadow: none !important;
         border-radius: var(--ha-card-border-radius, 4px) !important;
+        width: 100% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       .room-button .button-content {
         display: flex;
@@ -337,12 +342,13 @@ export class ControlPanel extends LitElement {
         align-items: center;
         justify-content: center;
         gap: 6px;
-        padding: 0;
+        padding: 16px 12px;
         position: relative;
         z-index: 1;
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
+        min-height: 80px;
       }
       .room-button .button-icon {
         font-size: 32px;
@@ -422,6 +428,8 @@ export class ControlPanel extends LitElement {
         background: var(--primary-color, var(--mdc-theme-primary)) !important;
         border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
         opacity: var(--ha-ripple-pressed-opacity, 0.12);
+        width: 100% !important;
+        height: 100% !important;
       }
       @media (hover: hover) and (pointer: fine) {
         .room-button:hover:not(.pressed) {
@@ -434,6 +442,8 @@ export class ControlPanel extends LitElement {
           border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
           background: var(--primary-color, var(--mdc-theme-primary)) !important;
           opacity: var(--ha-ripple-hover-opacity, 0.04);
+          width: 100% !important;
+          height: 100% !important;
         }
       }
       .content {
