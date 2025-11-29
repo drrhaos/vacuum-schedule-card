@@ -1464,25 +1464,20 @@ let ControlPanel = class ControlPanel extends s {
         const taskStatus = this._vacuumService.getTaskStatus();
         if (taskStatus) {
             const taskStatusLower = taskStatus.toLowerCase().trim();
-            // Список статусов, при которых кнопки активны (можно выбирать комнаты)
+            // Список неактивных статусов (когда можно выбирать комнаты)
             // Основано на переводах из dreame-vacuum интеграции
             // https://github.com/Tasshack/dreame-vacuum/blob/master/custom_components/dreame_vacuum/translations/
-            const activeButtonStatuses = [
+            const inactiveStatuses = [
                 // Английские статусы
-                "unknown", "completed",
+                "idle", "docked", "standby", "none", "unknown", "off", "stopped", "completed",
                 // Русские статусы (переведенные Home Assistant)
-                "неизвестно", "завершено",
+                "ожидание", "на базе", "неизвестно", "выключено", "остановлено", "нет", "завершено",
                 // Пустые значения
-                "", "null", "undefined", "none"
+                "", "null", "undefined"
             ];
-            // Если статус НЕ в списке активных, значит идет активная задача - блокируем
-            // Активные задачи (блокируем кнопки): cleaning, zone_cleaning, room_cleaning, spot_cleaning,
-            // fast_mapping, cleaning_paused, room_cleaning_paused, zone_cleaning_paused,
-            // spot_cleaning_paused, map_cleaning_paused, docking_paused, mopping_paused,
-            // zone_mopping_paused, room_mopping_paused, zone_docking_paused, room_docking_paused,
-            // cruising_path, cruising_path_paused, cruising_point, cruising_point_paused,
-            // summon_clean_paused, returning_to_install_mop, returning_to_remove_mop и т.д.
-            if (!activeButtonStatuses.includes(taskStatusLower)) {
+            // Если статус не в списке неактивных, значит идет активная задача - блокируем
+            // Активные статусы могут быть: cleaning, paused, returning, charging, drying, rinsing и т.д.
+            if (!inactiveStatuses.includes(taskStatusLower)) {
                 return true;
             }
         }
@@ -1709,99 +1704,85 @@ let ControlPanel = class ControlPanel extends s {
         return x `
       <div class="control-panel">
         <div class="control-panel-status">
-          <span class="status-icon ${vacuumState === "cleaning" ? "cleaning" : ""}">${o(getVacuumRobotSVG("default"))}</span>
+          <span class="status-icon ${"cleaning"===t?"cleaning":""}">${Rt(function(t="default"){return{default:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">\n  <circle cx="50" cy="50" r="42" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.25"/>\n  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--secondary-text-color, #9e9e9e)" stroke-width="2" opacity="0.4"/>\n  <circle cx="50" cy="28" r="7" fill="var(--card-background-color, var(--ha-card-background, #fff))" stroke="var(--secondary-text-color, #9e9e9e)" stroke-width="2"/>\n  <circle cx="50" cy="28" r="4" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.5"/>\n  <circle cx="50" cy="28" r="2" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))"/>\n  <path d="M 20 50 Q 50 48 80 50" stroke="var(--secondary-text-color, #9e9e9e)" stroke-width="1.5" fill="none" opacity="0.3"/>\n  <path d="M 20 50 Q 50 52 80 50" stroke="var(--secondary-text-color, #9e9e9e)" stroke-width="1.5" fill="none" opacity="0.3"/>\n  <circle cx="12" cy="50" r="3.5" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.6"/>\n  <circle cx="88" cy="50" r="3.5" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.6"/>\n  <circle cx="12" cy="50" r="1.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))"/>\n  <circle cx="88" cy="50" r="1.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))"/>\n  <ellipse cx="50" cy="78" rx="7" ry="3.5" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.5"/>\n  <ellipse cx="50" cy="78" rx="3.5" ry="1.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))"/>\n  <circle cx="42" cy="24" r="2" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.5"/>\n  <circle cx="58" cy="24" r="2" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.5"/>\n</svg>',outline:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">\n  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--primary-text-color)" stroke-width="2.5"/>\n  <circle cx="50" cy="28" r="7" fill="none" stroke="var(--primary-text-color)" stroke-width="2"/>\n  <circle cx="50" cy="28" r="4" fill="none" stroke="var(--primary-text-color)" stroke-width="1.5" opacity="0.6"/>\n  <circle cx="50" cy="28" r="2" fill="var(--primary-text-color)"/>\n  <path d="M 20 50 Q 50 48 80 50" stroke="var(--primary-text-color)" stroke-width="1.5" fill="none" opacity="0.3"/>\n  <path d="M 20 50 Q 50 52 80 50" stroke="var(--primary-text-color)" stroke-width="1.5" fill="none" opacity="0.3"/>\n  <circle cx="12" cy="50" r="3.5" fill="var(--primary-text-color)" opacity="0.7"/>\n  <circle cx="88" cy="50" r="3.5" fill="var(--primary-text-color)" opacity="0.7"/>\n  <ellipse cx="50" cy="78" rx="7" ry="3.5" fill="var(--primary-text-color)" opacity="0.7"/>\n  <circle cx="42" cy="24" r="2" fill="var(--primary-text-color)" opacity="0.6"/>\n  <circle cx="58" cy="24" r="2" fill="var(--primary-text-color)" opacity="0.6"/>\n</svg>',filled:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">\n  <circle cx="50" cy="50" r="38" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.3"/>\n  <circle cx="50" cy="28" r="7" fill="var(--card-background-color, var(--ha-card-background, #fff))"/>\n  <circle cx="50" cy="28" r="5" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.4"/>\n  <circle cx="50" cy="28" r="2.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))"/>\n  <path d="M 20 50 Q 50 48 80 50" stroke="var(--card-background-color, var(--ha-card-background, #fff))" stroke-width="2" fill="none" opacity="0.4"/>\n  <path d="M 20 50 Q 50 52 80 50" stroke="var(--card-background-color, var(--ha-card-background, #fff))" stroke-width="2" fill="none" opacity="0.4"/>\n  <circle cx="12" cy="50" r="4" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))" opacity="0.9"/>\n  <circle cx="88" cy="50" r="4" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))" opacity="0.9"/>\n  <circle cx="12" cy="50" r="2" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.7"/>\n  <circle cx="88" cy="50" r="2" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.7"/>\n  <ellipse cx="50" cy="78" rx="7" ry="3.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))" opacity="0.9"/>\n  <ellipse cx="50" cy="78" rx="4" ry="2" fill="var(--secondary-text-color, #9e9e9e)" opacity="0.6"/>\n  <circle cx="42" cy="24" r="2.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))" opacity="0.8"/>\n  <circle cx="58" cy="24" r="2.5" fill="var(--text-primary-color, var(--mdc-theme-on-primary, #fff))" opacity="0.8"/>\n</svg>'}[t]}("default"))}</span>
           <div class="status-info">
-            <span class="status-text">Статус: <strong>${this._getStateLabel()}${this._getAdditionalState() ? `, ${this._getAdditionalStateLabel()}` : ""}</strong></span>
-            ${this._getError() ? x `
+            <span class="status-text">Статус: <strong>${this._getStateLabel()}${this._getAdditionalState()?`, ${this._getAdditionalStateLabel()}`:""}</strong></span>
+            ${this._getError()?H`
               <span class="status-error">${this._getError()}</span>
-            ` : ""}
+            `:""}
           </div>
         </div>
         <div class="control-row">
-          ${!isStartDisabled ? x `
+          ${e?"":H`
             <ha-button 
               class="control-button"
               @click=${this._handleStart}
-              title="${this._t("start") || "Запуск"}"
+              title="${this._t("start")||"Запуск"}"
             >
-              ▶️ ${this._t("start") || "Запуск"}
+              ▶️ ${this._t("start")||"Запуск"}
             </ha-button>
-          ` : ""}
-          ${!isStopDisabled ? x `
+          `}
+          ${r?"":H`
             <ha-button 
               class="control-button"
               @click=${this._handleStop}
-              title="${this._t("stop") || "Остановка"}"
+              title="${this._t("stop")||"Остановка"}"
             >
-              ⏹️ ${this._t("stop") || "Остановка"}
+              ⏹️ ${this._t("stop")||"Остановка"}
             </ha-button>
-          ` : ""}
-          ${!isPauseDisabled ? x `
+          `}
+          ${i?"":H`
             <ha-button 
               class="control-button"
               @click=${this._handlePause}
-              title="${this._t("pause") || "Пауза"}"
+              title="${this._t("pause")||"Пауза"}"
             >
-              ⏸️ ${this._t("pause") || "Пауза"}
+              ⏸️ ${this._t("pause")||"Пауза"}
             </ha-button>
-          ` : ""}
-          ${!isReturnDisabled ? x `
+          `}
+          ${o?"":H`
             <ha-button 
               class="control-button"
               @click=${this._handleReturnToBase}
-              title="${this._t("return_to_base") || "На станцию"}"
+              title="${this._t("return_to_base")||"На станцию"}"
             >
-              🏠 ${this._t("return_to_base") || "На станцию"}
+              🏠 ${this._t("return_to_base")||"На станцию"}
             </ha-button>
-          ` : ""}
+          `}
         </div>
         <div class="control-row rooms-row">
-          ${visibleRooms.length > 0 ? x `
-            ${(() => {
-            const isCleaning = this._isCleaning();
-            const isDisabled = isCleaning;
-            return x `
+          ${s.length>0?H`
+            ${(()=>{const t=this._isCleaning(),e=t;return H`
                 <ha-card 
-                  class="room-button ${this.selectedRooms.length === 0 && !isCleaning ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
-                  @click=${isDisabled ? undefined : this._toggleAllRooms}
-                  title="${this._t("all_rooms")}${isDisabled ? " (идет уборка)" : ""}"
+                  class="room-button ${0!==this.selectedRooms.length||t?"":"pressed"} ${e?"disabled":""}"
+                  @click=${e?void 0:this._toggleAllRooms}
+                  title="${this._t("all_rooms")}${e?" (идет уборка)":""}"
                 >
                   <div class="button-content">
-                    <div class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</div>
+                    <div class="button-icon">${this._renderRoomIcon({id:0,name:this._t("all_rooms")})}</div>
                     <div class="button-label">${this._t("all_rooms")}</div>
                   </div>
                   <ha-ripple></ha-ripple>
                 </ha-card>
-              `;
-        })()}
-            ${visibleRooms.map((room) => {
-            const isCleaning = this._isCleaning();
-            const isRoomCleaning = this._currentCleaningRooms.includes(room.id);
-            const isSelected = this.selectedRooms.includes(room.id);
-            const isPressed = isRoomCleaning || (isSelected && !isCleaning);
-            const isDisabled = isCleaning;
-            return x `
+              `})()}
+            ${s.map(t=>{const e=this._isCleaning(),r=this._currentCleaningRooms.includes(t.id),i=this.selectedRooms.includes(t.id);return H`
                 <ha-card 
-                  class="room-button ${isPressed ? "pressed" : ""} ${isDisabled ? "disabled" : ""}"
-                  @click=${isDisabled ? undefined : () => this._toggleRoom(room.id)}
-                  title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}${isRoomCleaning ? " (убирается)" : ""}"
+                  class="room-button ${r||i&&!e?"pressed":""} ${e?"disabled":""}"
+                  @click=${e?void 0:()=>this._toggleRoom(t.id)}
+                  title="${t.name}${this.showRoomIds?` (ID: ${t.id})`:""}${r?" (убирается)":""}"
                 >
                   <div class="button-content">
-                    <div class="button-icon">${this._renderRoomIcon(room)}</div>
-                    <div class="button-label">${room.name}</div>
-                    ${this.showRoomIds ? x `<div class="button-id">ID: ${room.id}</div>` : ""}
+                    <div class="button-icon">${this._renderRoomIcon(t)}</div>
+                    <div class="button-label">${t.name}</div>
+                    ${this.showRoomIds?H`<div class="button-id">ID: ${t.id}</div>`:""}
                   </div>
                   <ha-ripple></ha-ripple>
                 </ha-card>
-              `;
-        })}
-          ` : x `<div class="content" style="width: 100%; text-align: center; padding: 8px;">${this._t("rooms_not_found")}</div>`}
+              `})}
+          `:H`<div class="content" style="width: 100%; text-align: center; padding: 8px;">${this._t("rooms_not_found")}</div>`}
         </div>
       </div>
-    `;
-    }
-    static get styles() {
-        return i$3 `
+    `}static get styles(){return n`
       .control-panel {
         margin-bottom: 16px;
         padding: 0;
@@ -2020,121 +2001,28 @@ let ControlPanel = class ControlPanel extends s {
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
         --mdc-theme-on-primary: var(--text-primary-color, var(--mdc-theme-on-primary));
       }
-    `;
-    }
-};
-__decorate([
-    n$1({ attribute: false })
-], ControlPanel.prototype, "hass", void 0);
-__decorate([
-    n$1()
-], ControlPanel.prototype, "entity", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ControlPanel.prototype, "rooms", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ControlPanel.prototype, "selectedRooms", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ControlPanel.prototype, "hiddenRooms", void 0);
-__decorate([
-    n$1()
-], ControlPanel.prototype, "showRoomIds", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ControlPanel.prototype, "roomIcons", void 0);
-__decorate([
-    t$1()
-], ControlPanel.prototype, "_vacuumService", void 0);
-__decorate([
-    t$1()
-], ControlPanel.prototype, "_currentCleaningRooms", void 0);
-ControlPanel = __decorate([
-    e$3("vacuum-control-panel")
-], ControlPanel);
-
-/**
- * Форматирует список дней недели в строку
- */
-function formatDays(days, dayNames, translations) {
-    if (days.length === 0)
-        return translations.noDays;
-    if (days.length === 7)
-        return translations.everyDay;
-    return days.map((d) => dayNames[d]).join(", ");
-}
-/**
- * Форматирует список комнат в строку
- */
-function formatRooms(roomIds, rooms, allRoomsText) {
-    if (roomIds.length === 0)
-        return allRoomsText;
-    const roomNames = roomIds
-        .map((id) => {
-        const room = rooms.find((r) => r.id === id);
-        return room ? room.name : `ID:${id}`;
-    })
-        .join(", ");
-    return roomNames || "Комнаты не выбраны";
-}
-
-let ScheduleList = class ScheduleList extends s {
-    constructor() {
-        super(...arguments);
-        this.schedules = [];
-        this.rooms = [];
-    }
-    _t(key) {
-        return translate(key, this.hass);
-    }
-    _formatDays(days) {
-        const dayNames = getDayNames(this.hass);
-        return formatDays(days, dayNames, {
-            noDays: this._t("no_days"),
-            everyDay: this._t("every_day"),
-        });
-    }
-    _formatRooms(roomIds) {
-        return formatRooms(roomIds, this.rooms, this._t("all_rooms"));
-    }
-    _handleEdit(schedule) {
-        this.dispatchEvent(new CustomEvent("schedule-edit", { detail: { schedule } }));
-    }
-    _handleDelete(schedule) {
-        this.dispatchEvent(new CustomEvent("schedule-delete", { detail: { schedule } }));
-    }
-    async _handleToggle(schedule, enabled) {
-        this.dispatchEvent(new CustomEvent("schedule-toggle", { detail: { schedule, enabled } }));
-    }
-    render() {
-        if (this.schedules.length === 0) {
-            return x `<div class="content">${this._t("no_schedules")}</div>`;
-        }
-        return x `
+    `}};t([ct({attribute:!1})],zt.prototype,"hass",void 0),t([ct()],zt.prototype,"entity",void 0),t([ct({attribute:!1})],zt.prototype,"rooms",void 0),t([ct({attribute:!1})],zt.prototype,"selectedRooms",void 0),t([ct({attribute:!1})],zt.prototype,"hiddenRooms",void 0),t([ct()],zt.prototype,"showRoomIds",void 0),t([ct({attribute:!1})],zt.prototype,"roomIcons",void 0),t([lt()],zt.prototype,"_vacuumService",void 0),t([lt()],zt.prototype,"_currentCleaningRooms",void 0),zt=t([nt("vacuum-control-panel")],zt);let Ut=class extends ot{constructor(){super(...arguments),this.schedules=[],this.rooms=[]}_t(t){return ft(t,this.hass)}_formatDays(t){return function(t,e,r){return 0===t.length?r.noDays:7===t.length?r.everyDay:t.map(t=>e[t]).join(", ")}(t,bt(this.hass),{noDays:this._t("no_days"),everyDay:this._t("every_day")})}_formatRooms(t){return function(t,e,r){if(0===t.length)return r;const i=t.map(t=>{const r=e.find(e=>e.id===t);return r?r.name:`ID:${t}`}).join(", ");return i||"Комнаты не выбраны"}(t,this.rooms,this._t("all_rooms"))}_handleEdit(t){this.dispatchEvent(new CustomEvent("schedule-edit",{detail:{schedule:t}}))}_handleDelete(t){this.dispatchEvent(new CustomEvent("schedule-delete",{detail:{schedule:t}}))}async _handleToggle(t,e){this.dispatchEvent(new CustomEvent("schedule-toggle",{detail:{schedule:t,enabled:e}}))}render(){return 0===this.schedules.length?H`<div class="content">${this._t("no_schedules")}</div>`:H`
       <div class="schedules-list">
-        ${this.schedules.map((schedule) => x `
-            <div class="schedule-item" @click=${() => this._handleEdit(schedule)}>
+        ${this.schedules.map(t=>H`
+            <div class="schedule-item" @click=${()=>this._handleEdit(t)}>
               <div class="schedule-info">
                 <div class="schedule-time">
-                  ${schedule.enabled ? "✅" : "⏸️"} ${schedule.time}
+                  ${t.enabled?"✅":"⏸️"} ${t.time}
                 </div>
                 <div class="schedule-days">
-                  ${this._formatDays(schedule.days)}
-                  ${schedule.rooms.length > 0
-            ? ` • ${this._formatRooms(schedule.rooms)}`
-            : ` • ${this._t("all_rooms")}`}
+                  ${this._formatDays(t.days)}
+                  ${t.rooms.length>0?` • ${this._formatRooms(t.rooms)}`:` • ${this._t("all_rooms")}`}
                 </div>
               </div>
-              <div class="schedule-actions" @click=${(e) => e.stopPropagation()}>
+              <div class="schedule-actions" @click=${t=>t.stopPropagation()}>
                 <ha-switch
                   class="toggle-switch"
-                  .checked=${schedule.enabled}
-                  @change=${(e) => this._handleToggle(schedule, e.target.checked)}
+                  .checked=${t.enabled}
+                  @change=${e=>this._handleToggle(t,e.target.checked)}
                 ></ha-switch>
                 <button
                   class="action-button"
-                  @click=${() => this._handleDelete(schedule)}
+                  @click=${()=>this._handleDelete(t)}
                   title="Удалить"
                 >
                   🗑️
@@ -2143,10 +2031,7 @@ let ScheduleList = class ScheduleList extends s {
             </div>
           `)}
       </div>
-    `;
-    }
-    static get styles() {
-        return i$3 `
+    `}static get styles(){return n`
       .schedules-list {
         margin-top: 16px;
       }
@@ -2229,182 +2114,37 @@ let ScheduleList = class ScheduleList extends s {
         font-size: 14px;
         line-height: 1.5;
       }
-    `;
-    }
-};
-__decorate([
-    n$1({ attribute: false })
-], ScheduleList.prototype, "hass", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ScheduleList.prototype, "schedules", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ScheduleList.prototype, "rooms", void 0);
-ScheduleList = __decorate([
-    e$3("vacuum-schedule-list")
-], ScheduleList);
-
-let ScheduleDialog = class ScheduleDialog extends s {
-    constructor() {
-        super(...arguments);
-        this.open = false;
-        this.rooms = [];
-        this.hiddenRooms = [];
-        this._newSchedule = {
-            enabled: true,
-            days: [],
-            time: "09:00",
-            rooms: [],
-        };
-    }
-    updated(changedProperties) {
-        if (changedProperties.has("schedule") || changedProperties.has("open")) {
-            if (this.open && this.schedule) {
-                // Фильтруем скрытые комнаты из существующего расписания
-                const visibleRooms = this.rooms.filter(room => !this.hiddenRooms.includes(room.id));
-                const validRooms = this.schedule.rooms.filter(roomId => visibleRooms.some(room => room.id === roomId));
-                this._newSchedule = {
-                    enabled: this.schedule.enabled,
-                    days: [...this.schedule.days],
-                    time: this.schedule.time,
-                    rooms: validRooms,
-                    name: this.schedule.name,
-                };
-            }
-            else if (this.open && !this.schedule) {
-                this._newSchedule = {
-                    enabled: true,
-                    days: [],
-                    time: "09:00",
-                    rooms: [],
-                };
-            }
-        }
-    }
-    _t(key) {
-        return translate(key, this.hass);
-    }
-    _getDayNames() {
-        return getDayNames(this.hass);
-    }
-    _handleClose() {
-        this.dispatchEvent(new CustomEvent("dialog-close"));
-    }
-    _handleSave() {
-        if (!this._newSchedule.time) {
-            this.error = this._t("error_time_required") || "Время обязательно";
-            return;
-        }
-        if (!this._newSchedule.days || this._newSchedule.days.length === 0) {
-            this.error = this._t("error_days_required") || "Выберите хотя бы один день";
-            return;
-        }
-        this.error = undefined;
-        this.dispatchEvent(new CustomEvent("schedule-save", {
-            detail: {
-                schedule: {
-                    id: this.schedule?.id,
-                    enabled: this._newSchedule.enabled ?? true,
-                    days: this._newSchedule.days || [],
-                    time: this._newSchedule.time || "09:00",
-                    rooms: this._newSchedule.rooms || [],
-                    name: this._newSchedule.name,
-                },
-            },
-        }));
-    }
-    _handleDayToggle(day) {
-        if (!this._newSchedule.days) {
-            this._newSchedule.days = [];
-        }
-        const index = this._newSchedule.days.indexOf(day);
-        if (index === -1) {
-            this._newSchedule.days.push(day);
-        }
-        else {
-            this._newSchedule.days.splice(index, 1);
-        }
-        this.requestUpdate();
-    }
-    _handleTimeChange(e) {
-        this._newSchedule.time = e.target.value;
-    }
-    _handleToggleAllRooms(e) {
-        const checked = e.target.checked;
-        const visibleRooms = this.rooms.filter(room => !this.hiddenRooms.includes(room.id));
-        if (checked) {
-            this._newSchedule.rooms = visibleRooms.map(r => r.id);
-        }
-        else {
-            this._newSchedule.rooms = [];
-        }
-        this.requestUpdate();
-    }
-    _handleToggleRoom(roomId, e) {
-        if (!this._newSchedule.rooms) {
-            this._newSchedule.rooms = [];
-        }
-        const checkbox = e.target;
-        if (checkbox.checked) {
-            if (!this._newSchedule.rooms.includes(roomId)) {
-                this._newSchedule.rooms.push(roomId);
-            }
-        }
-        else {
-            const index = this._newSchedule.rooms.indexOf(roomId);
-            if (index !== -1) {
-                this._newSchedule.rooms.splice(index, 1);
-            }
-        }
-        this.requestUpdate();
-    }
-    _handleEnabledChange(e) {
-        this._newSchedule.enabled = e.target.checked;
-    }
-    _handleNameChange(e) {
-        this._newSchedule.name = e.target.value || undefined;
-    }
-    render() {
-        if (!this.open) {
-            return x ``;
-        }
-        const dayNames = this._getDayNames();
-        const visibleRooms = this.rooms.filter(room => !this.hiddenRooms.includes(room.id));
-        return x `
+    `}};t([ct({attribute:!1})],Ut.prototype,"hass",void 0),t([ct({attribute:!1})],Ut.prototype,"schedules",void 0),t([ct({attribute:!1})],Ut.prototype,"rooms",void 0),Ut=t([nt("vacuum-schedule-list")],Ut);let Dt=class extends ot{constructor(){super(...arguments),this.open=!1,this.rooms=[],this.hiddenRooms=[],this._newSchedule={enabled:!0,days:[],time:"09:00",rooms:[]}}updated(t){if(t.has("schedule")||t.has("open"))if(this.open&&this.schedule){const t=this.rooms.filter(t=>!this.hiddenRooms.includes(t.id)),e=this.schedule.rooms.filter(e=>t.some(t=>t.id===e));this._newSchedule={enabled:this.schedule.enabled,days:[...this.schedule.days],time:this.schedule.time,rooms:e,name:this.schedule.name}}else this.open&&!this.schedule&&(this._newSchedule={enabled:!0,days:[],time:"09:00",rooms:[]})}_t(t){return ft(t,this.hass)}_getDayNames(){return bt(this.hass)}_handleClose(){this.dispatchEvent(new CustomEvent("dialog-close"))}_handleSave(){this._newSchedule.time?this._newSchedule.days&&0!==this._newSchedule.days.length?(this.error=void 0,this.dispatchEvent(new CustomEvent("schedule-save",{detail:{schedule:{id:this.schedule?.id,enabled:this._newSchedule.enabled??!0,days:this._newSchedule.days||[],time:this._newSchedule.time||"09:00",rooms:this._newSchedule.rooms||[],name:this._newSchedule.name}}}))):this.error=this._t("error_days_required")||"Выберите хотя бы один день":this.error=this._t("error_time_required")||"Время обязательно"}_handleDayToggle(t){this._newSchedule.days||(this._newSchedule.days=[]);const e=this._newSchedule.days.indexOf(t);-1===e?this._newSchedule.days.push(t):this._newSchedule.days.splice(e,1),this.requestUpdate()}_handleTimeChange(t){this._newSchedule.time=t.target.value}_handleToggleAllRooms(t){const e=t.target.checked,r=this.rooms.filter(t=>!this.hiddenRooms.includes(t.id));this._newSchedule.rooms=e?r.map(t=>t.id):[],this.requestUpdate()}_handleToggleRoom(t,e){this._newSchedule.rooms||(this._newSchedule.rooms=[]);if(e.target.checked)this._newSchedule.rooms.includes(t)||this._newSchedule.rooms.push(t);else{const e=this._newSchedule.rooms.indexOf(t);-1!==e&&this._newSchedule.rooms.splice(e,1)}this.requestUpdate()}_handleEnabledChange(t){this._newSchedule.enabled=t.target.checked}_handleNameChange(t){this._newSchedule.name=t.target.value||void 0}render(){if(!this.open)return H``;const t=this._getDayNames(),e=this.rooms.filter(t=>!this.hiddenRooms.includes(t.id));return H`
       <div class="dialog" @click=${this._handleClose}>
-        <div class="dialog-content" @click=${(e) => e.stopPropagation()}>
+        <div class="dialog-content" @click=${t=>t.stopPropagation()}>
           <div class="dialog-header">
-            ${this.schedule ? this._t("edit_schedule") : this._t("add_schedule")}
+            ${this.schedule?this._t("edit_schedule"):this._t("add_schedule")}
           </div>
 
-          ${this.error ? x `<div class="error">${this.error}</div>` : ""}
+          ${this.error?H`<div class="error">${this.error}</div>`:""}
 
           <div class="form-group">
             <label class="form-label">${this._t("name_label")}</label>
             <input
               type="text"
               class="form-input"
-              .value=${this._newSchedule.name || ""}
+              .value=${this._newSchedule.name||""}
               @input=${this._handleNameChange}
-              placeholder=${this._t("name_placeholder") || "Название расписания (необязательно)"}
+              placeholder=${this._t("name_placeholder")||"Название расписания (необязательно)"}
             />
           </div>
 
           <div class="form-group">
             <label class="form-label">${this._t("days_label")}</label>
             <div class="days-selector">
-              ${dayNames.map((name, index) => {
-            const day = index === 0 ? 0 : index;
-            return x `
+              ${t.map((t,e)=>{const r=0===e?0:e;return H`
                   <button
-                    class="day-button ${this._newSchedule.days?.includes(day) ? "selected" : ""}"
-                    @click=${() => this._handleDayToggle(day)}
+                    class="day-button ${this._newSchedule.days?.includes(r)?"selected":""}"
+                    @click=${()=>this._handleDayToggle(r)}
                   >
-                    ${name}
+                    ${t}
                   </button>
-                `;
-        })}
+                `})}
             </div>
           </div>
 
@@ -2413,50 +2153,48 @@ let ScheduleDialog = class ScheduleDialog extends s {
             <input
               type="time"
               class="form-input"
-              .value=${this._newSchedule.time || "09:00"}
+              .value=${this._newSchedule.time||"09:00"}
               @input=${this._handleTimeChange}
             />
           </div>
 
           <div class="form-group">
-            ${(() => {
-            return x `
-                <label class="form-label">${this._t("rooms_label")} (${visibleRooms.length} ${this._t("rooms_available")})</label>
+            ${(()=>H`
+                <label class="form-label">${this._t("rooms_label")} (${e.length} ${this._t("rooms_available")})</label>
                 <div class="rooms-selector">
-                  ${visibleRooms.length > 0 ? x `
+                  ${e.length>0?H`
                     <div class="select-all-rooms">
                       <label>
                         <input
                           type="checkbox"
                           class="room-checkbox"
-                          .checked=${this._newSchedule.rooms?.length === visibleRooms.length && visibleRooms.length > 0}
+                          .checked=${this._newSchedule.rooms?.length===e.length&&e.length>0}
                           @change=${this._handleToggleAllRooms}
                         />
                         ${this._t("select_all")}
                       </label>
                     </div>
-                    ${visibleRooms.map((room) => x `
+                    ${e.map(t=>H`
                       <div class="room-item">
                         <input
                           type="checkbox"
                           class="room-checkbox"
-                          .checked=${this._newSchedule.rooms?.includes(room.id) || false}
-                          @change=${(e) => this._handleToggleRoom(room.id, e)}
+                          .checked=${this._newSchedule.rooms?.includes(t.id)||!1}
+                          @change=${e=>this._handleToggleRoom(t.id,e)}
                         />
-                        <span>${room.name} (ID: ${room.id})</span>
+                        <span>${t.name} (ID: ${t.id})</span>
                       </div>
                     `)}
-                  ` : x `<div class="content">${this._t("rooms_not_found")}</div>`}
+                  `:H`<div class="content">${this._t("rooms_not_found")}</div>`}
                 </div>
-              `;
-        })()}
+              `)()}
           </div>
 
           <div class="form-group">
             <label class="form-label">
               <input
                 type="checkbox"
-                .checked=${this._newSchedule.enabled ?? true}
+                .checked=${this._newSchedule.enabled??!0}
                 @change=${this._handleEnabledChange}
               />
               ${this._t("enabled")}
@@ -2473,10 +2211,7 @@ let ScheduleDialog = class ScheduleDialog extends s {
           </div>
         </div>
       </div>
-    `;
-    }
-    static get styles() {
-        return i$3 `
+    `}static get styles(){return n`
       .dialog {
         position: fixed !important;
         top: 0 !important;
@@ -2656,232 +2391,12 @@ let ScheduleDialog = class ScheduleDialog extends s {
         padding: 24px;
         color: var(--secondary-text-color);
       }
-    `;
-    }
-};
-__decorate([
-    n$1({ attribute: false })
-], ScheduleDialog.prototype, "hass", void 0);
-__decorate([
-    n$1({ type: Boolean })
-], ScheduleDialog.prototype, "open", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ScheduleDialog.prototype, "schedule", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ScheduleDialog.prototype, "rooms", void 0);
-__decorate([
-    n$1({ attribute: false })
-], ScheduleDialog.prototype, "hiddenRooms", void 0);
-__decorate([
-    n$1()
-], ScheduleDialog.prototype, "error", void 0);
-__decorate([
-    t$1()
-], ScheduleDialog.prototype, "_newSchedule", void 0);
-ScheduleDialog = __decorate([
-    e$3("vacuum-schedule-dialog")
-], ScheduleDialog);
-
-let VacuumScheduleCard = class VacuumScheduleCard extends s {
-    constructor() {
-        super(...arguments);
-        this._schedules = [];
-        this._loading = false;
-        this._showAddDialog = false;
-        this._rooms = [];
-        this._selectedRoomsForControl = [];
-    }
-    setConfig(config) {
-        if (!config.entity) {
-            throw new Error("Entity must be specified");
-        }
-        this._config = config;
-        this.entity = config.entity;
-        if (this.hass) {
-            this._scheduleService = new ScheduleService(this.hass, this.entity, (key) => this._t(key));
-            this._loadSchedules();
-            this._loadRooms();
-        }
-    }
-    connectedCallback() {
-        super.connectedCallback();
-        if (this.hass && this.entity) {
-            this._scheduleService = new ScheduleService(this.hass, this.entity, (key) => this._t(key));
-            this._loadSchedules();
-            this._loadRooms();
-            this._subscribeToAutomationChanges();
-        }
-    }
-    disconnectedCallback() {
-        super.disconnectedCallback();
-        if (this._unsubscribeAutomations) {
-            this._unsubscribeAutomations();
-            this._unsubscribeAutomations = undefined;
-        }
-    }
-    _subscribeToAutomationChanges() {
-        if (this._unsubscribeAutomations) {
-            this._unsubscribeAutomations();
-            this._unsubscribeAutomations = undefined;
-        }
-        const subscription = subscribeToStateChangesByPattern(this.hass, "automation.vacuum_schedule_", () => {
-            this._loadSchedules();
-        });
-        if (subscription) {
-            this._unsubscribeAutomations = subscription.unsubscribe;
-        }
-    }
-    async _loadRooms() {
-        if (!this.hass || !this.entity)
-            return;
-        this._rooms = await loadRooms(this.hass, this.entity, (key) => this._t(key), this._config?.room_icons);
-        this.requestUpdate();
-    }
-    async _loadSchedules() {
-        if (!this.hass || !this._scheduleService)
-            return;
-        this._loading = true;
-        this._error = undefined;
-        try {
-            this._schedules = await this._scheduleService.loadSchedules();
-        }
-        catch (error) {
-            this._error = `${this._t("error_loading")} ${error}`;
-            console.error(this._error);
-        }
-        finally {
-            this._loading = false;
-            this.requestUpdate();
-        }
-    }
-    _t(key) {
-        return translate(key, this.hass);
-    }
-    _handleRoomToggled(e) {
-        const { roomId, selected } = e.detail;
-        if (selected) {
-            this._selectedRoomsForControl = [...this._selectedRoomsForControl, roomId];
-        }
-        else {
-            this._selectedRoomsForControl = this._selectedRoomsForControl.filter(id => id !== roomId);
-        }
-        this.requestUpdate();
-    }
-    _handleAllRoomsToggled() {
-        if (this._selectedRoomsForControl.length === 0) {
-            this._selectedRoomsForControl = this._rooms.map(r => r.id);
-        }
-        else {
-            this._selectedRoomsForControl = [];
-        }
-        this.requestUpdate();
-    }
-    _handleScheduleEdit(e) {
-        this._editingSchedule = e.detail.schedule;
-        this._showAddDialog = true;
-        this._error = undefined;
-        this.requestUpdate();
-    }
-    _handleScheduleDelete(e) {
-        const schedule = e.detail.schedule;
-        if (!confirm(this._t("delete_confirm"))) {
-            return;
-        }
-        this._deleteSchedule(schedule);
-    }
-    async _deleteSchedule(schedule) {
-        if (!this._scheduleService)
-            return;
-        this._schedules = this._schedules.filter(s => s.id !== schedule.id);
-        this.requestUpdate();
-        try {
-            await this._scheduleService.deleteSchedule(schedule);
-            await this._loadSchedules();
-        }
-        catch (error) {
-            console.error("[Vacuum Schedule Card] Ошибка удаления расписания:", error);
-            this._error = `${this._t("error_deleting") || "Ошибка удаления"}: ${error}`;
-            this.requestUpdate();
-        }
-    }
-    async _handleScheduleToggle(e) {
-        const { schedule, enabled } = e.detail;
-        if (!this._scheduleService)
-            return;
-        const updatedSchedule = { ...schedule, enabled };
-        this._schedules = this._schedules.map(s => s.id === schedule.id ? updatedSchedule : s);
-        this.requestUpdate();
-        try {
-            await this._scheduleService.toggleSchedule(schedule, enabled);
-            await this._loadSchedules();
-        }
-        catch (error) {
-            console.error("[Vacuum Schedule Card] Ошибка переключения расписания:", error);
-            this._error = `${this._t("error_toggling") || "Ошибка переключения"}: ${error}`;
-            this.requestUpdate();
-        }
-    }
-    _handleScheduleSave(e) {
-        const { schedule, oldSchedule } = e.detail;
-        if (!this._scheduleService)
-            return;
-        let schedules = [...this._schedules];
-        if (oldSchedule) {
-            const index = schedules.findIndex(s => s.id === oldSchedule.id);
-            if (index > -1) {
-                schedules[index] = schedule;
-            }
-        }
-        else {
-            schedules.push(schedule);
-        }
-        this._schedules = schedules;
-        this._showAddDialog = false;
-        this._editingSchedule = undefined;
-        this._error = undefined;
-        this.requestUpdate();
-        this._scheduleService.saveSchedule(schedule, oldSchedule)
-            .then(() => this._loadSchedules())
-            .catch((error) => {
-            console.error("[Vacuum Schedule Card] Ошибка сохранения расписания:", error);
-            this._error = `${this._t("error_saving")} ${error}`;
-            this.requestUpdate();
-        });
-    }
-    _handleDialogClose() {
-        this._showAddDialog = false;
-        this._editingSchedule = undefined;
-        this._error = undefined;
-        this.requestUpdate();
-    }
-    _handleError(e) {
-        this._error = e.detail.message;
-        this.requestUpdate();
-    }
-    _handleAddSchedule() {
-        this._editingSchedule = undefined;
-        this._showAddDialog = true;
-        this._error = undefined;
-        this.requestUpdate();
-    }
-    render() {
-        if (!this.hass || !this.entity) {
-            return x `<ha-card>
+    `}};t([ct({attribute:!1})],Dt.prototype,"hass",void 0),t([ct({type:Boolean})],Dt.prototype,"open",void 0),t([ct({attribute:!1})],Dt.prototype,"schedule",void 0),t([ct({attribute:!1})],Dt.prototype,"rooms",void 0),t([ct({attribute:!1})],Dt.prototype,"hiddenRooms",void 0),t([ct()],Dt.prototype,"error",void 0),t([lt()],Dt.prototype,"_newSchedule",void 0),Dt=t([nt("vacuum-schedule-dialog")],Dt);let Pt=class extends ot{constructor(){super(...arguments),this._schedules=[],this._loading=!1,this._showAddDialog=!1,this._rooms=[],this._selectedRoomsForControl=[]}setConfig(t){if(!t.entity)throw new Error("Entity must be specified");this._config=t,this.entity=t.entity,this.hass&&(this._scheduleService=new $t(this.hass,this.entity,t=>this._t(t)),this._loadSchedules(),this._loadRooms())}connectedCallback(){super.connectedCallback(),this.hass&&this.entity&&(this._scheduleService=new $t(this.hass,this.entity,t=>this._t(t)),this._loadSchedules(),this._loadRooms(),this._subscribeToAutomationChanges())}disconnectedCallback(){super.disconnectedCallback(),this._unsubscribeAutomations&&(this._unsubscribeAutomations(),this._unsubscribeAutomations=void 0)}_subscribeToAutomationChanges(){this._unsubscribeAutomations&&(this._unsubscribeAutomations(),this._unsubscribeAutomations=void 0);const t=function(t,e,r){if(!t?.connection)return null;try{if("function"==typeof t.connection.subscribeEvents){const i=t.connection.subscribeEvents(t=>{const i=t.event?.data?.entity_id;i&&i.startsWith(e)&&r()},"state_changed");if("function"==typeof i)return{unsubscribe:()=>{try{i()}catch(t){}}}}}catch(t){console.warn("[Vacuum Schedule Card] Ошибка подписки на изменения состояния:",t)}return null}(this.hass,"automation.vacuum_schedule_",()=>{this._loadSchedules()});t&&(this._unsubscribeAutomations=t.unsubscribe)}async _loadRooms(){this.hass&&this.entity&&(this._rooms=await xt(this.hass,this.entity,t=>this._t(t),this._config?.room_icons),this.requestUpdate())}async _loadSchedules(){if(this.hass&&this._scheduleService){this._loading=!0,this._error=void 0;try{this._schedules=await this._scheduleService.loadSchedules()}catch(t){this._error=`${this._t("error_loading")} ${t}`,console.error(this._error)}finally{this._loading=!1,this.requestUpdate()}}}_t(t){return ft(t,this.hass)}_handleRoomToggled(t){const{roomId:e,selected:r}=t.detail;this._selectedRoomsForControl=r?[...this._selectedRoomsForControl,e]:this._selectedRoomsForControl.filter(t=>t!==e),this.requestUpdate()}_handleAllRoomsToggled(){0===this._selectedRoomsForControl.length?this._selectedRoomsForControl=this._rooms.map(t=>t.id):this._selectedRoomsForControl=[],this.requestUpdate()}_handleScheduleEdit(t){this._editingSchedule=t.detail.schedule,this._showAddDialog=!0,this._error=void 0,this.requestUpdate()}_handleScheduleDelete(t){const e=t.detail.schedule;confirm(this._t("delete_confirm"))&&this._deleteSchedule(e)}async _deleteSchedule(t){if(this._scheduleService){this._schedules=this._schedules.filter(e=>e.id!==t.id),this.requestUpdate();try{await this._scheduleService.deleteSchedule(t),await this._loadSchedules()}catch(t){console.error("[Vacuum Schedule Card] Ошибка удаления расписания:",t),this._error=`${this._t("error_deleting")||"Ошибка удаления"}: ${t}`,this.requestUpdate()}}}async _handleScheduleToggle(t){const{schedule:e,enabled:r}=t.detail;if(!this._scheduleService)return;const i={...e,enabled:r};this._schedules=this._schedules.map(t=>t.id===e.id?i:t),this.requestUpdate();try{await this._scheduleService.toggleSchedule(e,r),await this._loadSchedules()}catch(t){console.error("[Vacuum Schedule Card] Ошибка переключения расписания:",t),this._error=`${this._t("error_toggling")||"Ошибка переключения"}: ${t}`,this.requestUpdate()}}_handleScheduleSave(t){const{schedule:e,oldSchedule:r}=t.detail;if(!this._scheduleService)return;let i=[...this._schedules];if(r){const t=i.findIndex(t=>t.id===r.id);t>-1&&(i[t]=e)}else i.push(e);this._schedules=i,this._showAddDialog=!1,this._editingSchedule=void 0,this._error=void 0,this.requestUpdate(),this._scheduleService.saveSchedule(e,r).then(()=>this._loadSchedules()).catch(t=>{console.error("[Vacuum Schedule Card] Ошибка сохранения расписания:",t),this._error=`${this._t("error_saving")} ${t}`,this.requestUpdate()})}_handleDialogClose(){this._showAddDialog=!1,this._editingSchedule=void 0,this._error=void 0,this.requestUpdate()}_handleError(t){this._error=t.detail.message,this.requestUpdate()}_handleAddSchedule(){this._editingSchedule=void 0,this._showAddDialog=!0,this._error=void 0,this.requestUpdate()}render(){if(!this.hass||!this.entity)return H`<ha-card>
         <div class="content">${this._t("error_no_entity")}</div>
-      </ha-card>`;
-        }
-        const state = this.hass.states[this.entity];
-        if (!state) {
-            return x `<ha-card>
-        <div class="content">${this._t("error_entity_not_found")} ${this.entity} ${this._t("not_found")}</div>
-      </ha-card>`;
-        }
-        return x `
+      </ha-card>`;return this.hass.states[this.entity]?H`
       <ha-card>
         <div class="header">
-          <span>${this._config?.title || "Пылесос"}</span>
+          <span>${this._config?.title||"Пылесос"}</span>
           <span>${this._schedules.length} ${this._t("schedules_count")}</span>
         </div>
         
@@ -2890,19 +2405,17 @@ let VacuumScheduleCard = class VacuumScheduleCard extends s {
           .entity=${this.entity}
           .rooms=${this._rooms}
           .selectedRooms=${this._selectedRoomsForControl}
-          .hiddenRooms=${this._config?.hidden_rooms || []}
-          .showRoomIds=${this._config?.show_room_ids || false}
-          .roomIcons=${this._config?.room_icons || {}}
+          .hiddenRooms=${this._config?.hidden_rooms||[]}
+          .showRoomIds=${this._config?.show_room_ids||!1}
+          .roomIcons=${this._config?.room_icons||{}}
           @room-toggled=${this._handleRoomToggled}
           @all-rooms-toggled=${this._handleAllRoomsToggled}
           @error=${this._handleError}
         ></vacuum-control-panel>
           
-        ${this._error && !this._showAddDialog ? x `<div class="error">${this._error}</div>` : ""}
+        ${this._error&&!this._showAddDialog?H`<div class="error">${this._error}</div>`:""}
           
-        ${this._loading
-            ? x `<div class="loading">${this._t("loading")}</div>`
-            : x `
+        ${this._loading?H`<div class="loading">${this._t("loading")}</div>`:H`
               <vacuum-schedule-list
                 .hass=${this.hass}
                 .schedules=${this._schedules}
@@ -2922,79 +2435,15 @@ let VacuumScheduleCard = class VacuumScheduleCard extends s {
         .open=${this._showAddDialog}
         .schedule=${this._editingSchedule}
         .rooms=${this._rooms}
-        .hiddenRooms=${this._config?.hidden_rooms || []}
+        .hiddenRooms=${this._config?.hidden_rooms||[]}
         .error=${this._error}
         @schedule-save=${this._handleScheduleSave}
         @dialog-close=${this._handleDialogClose}
         @error=${this._handleError}
       ></vacuum-schedule-dialog>
-    `;
-    }
-    getCardSize() {
-        return 3;
-    }
-    getGridOptions() {
-        return {
-            rows: 3,
-            columns: 6,
-            min_rows: 2,
-            max_rows: 6,
-            min_columns: 3,
-            max_columns: 12,
-        };
-    }
-    static getStubConfig() {
-        return {
-            entity: "vacuum.example",
-            type: "custom:vacuum-schedule-card",
-            title: undefined,
-            hidden_rooms: [],
-            show_room_ids: false,
-            room_icons: {},
-        };
-    }
-    static getConfigForm() {
-        return {
-            schema: [
-                {
-                    name: "entity",
-                    required: true,
-                    selector: {
-                        entity: {
-                            domain: "vacuum",
-                        },
-                    },
-                },
-                {
-                    name: "title",
-                    required: false,
-                    selector: {
-                        text: {},
-                    },
-                },
-            ],
-            computeLabel: (schema) => {
-                if (schema.name === "entity") {
-                    return "Vacuum Entity";
-                }
-                if (schema.name === "title") {
-                    return "Card Title";
-                }
-                return undefined;
-            },
-            computeHelper: (schema) => {
-                if (schema.name === "entity") {
-                    return "Select the vacuum entity to manage schedules for";
-                }
-                if (schema.name === "title") {
-                    return "Custom title for the card (optional). If not specified, default title will be used.";
-                }
-                return undefined;
-            },
-        };
-    }
-    static get styles() {
-        return i$3 `
+    `:H`<ha-card>
+        <div class="content">${this._t("error_entity_not_found")} ${this.entity} ${this._t("not_found")}</div>
+      </ha-card>`}getCardSize(){return 3}getGridOptions(){return{rows:3,columns:6,min_rows:2,max_rows:6,min_columns:3,max_columns:12}}static getStubConfig(){return{entity:"vacuum.example",type:"custom:vacuum-schedule-card",title:void 0,hidden_rooms:[],show_room_ids:!1,room_icons:{}}}static getConfigForm(){return{schema:[{name:"entity",required:!0,selector:{entity:{domain:"vacuum"}}},{name:"title",required:!1,selector:{text:{}}}],computeLabel:t=>"entity"===t.name?"Vacuum Entity":"title"===t.name?"Card Title":void 0,computeHelper:t=>"entity"===t.name?"Select the vacuum entity to manage schedules for":"title"===t.name?"Custom title for the card (optional). If not specified, default title will be used.":void 0}}static get styles(){return n`
       :host {
         display: block;
       }
@@ -3048,49 +2497,4 @@ let VacuumScheduleCard = class VacuumScheduleCard extends s {
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
         --mdc-theme-on-primary: var(--text-primary-color, var(--mdc-theme-on-primary));
       }
-    `;
-    }
-};
-__decorate([
-    n$1({ attribute: false })
-], VacuumScheduleCard.prototype, "hass", void 0);
-__decorate([
-    n$1()
-], VacuumScheduleCard.prototype, "entity", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_schedules", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_loading", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_error", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_showAddDialog", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_editingSchedule", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_rooms", void 0);
-__decorate([
-    t$1()
-], VacuumScheduleCard.prototype, "_selectedRoomsForControl", void 0);
-VacuumScheduleCard = __decorate([
-    e$3("vacuum-schedule-card")
-], VacuumScheduleCard);
-if (!customElements.get("vacuum-schedule-card")) {
-    customElements.define("vacuum-schedule-card", VacuumScheduleCard);
-}
-window.customCards = window.customCards || [];
-window.customCards.push({
-    preview: true,
-    type: "vacuum-schedule-card",
-    name: "Vacuum Schedule Card",
-    description: "Карточка для создания расписания уборки пылесоса",
-});
-
-export { VacuumScheduleCard };
-//# sourceMappingURL=vacuum-schedule-card.js.map
+    `}};t([ct({attribute:!1})],Pt.prototype,"hass",void 0),t([ct()],Pt.prototype,"entity",void 0),t([lt()],Pt.prototype,"_schedules",void 0),t([lt()],Pt.prototype,"_loading",void 0),t([lt()],Pt.prototype,"_error",void 0),t([lt()],Pt.prototype,"_showAddDialog",void 0),t([lt()],Pt.prototype,"_editingSchedule",void 0),t([lt()],Pt.prototype,"_rooms",void 0),t([lt()],Pt.prototype,"_selectedRoomsForControl",void 0),Pt=t([nt("vacuum-schedule-card")],Pt),customElements.get("vacuum-schedule-card")||customElements.define("vacuum-schedule-card",Pt),window.customCards=window.customCards||[],window.customCards.push({preview:!0,type:"vacuum-schedule-card",name:"Vacuum Schedule Card",description:"Карточка для создания расписания уборки пылесоса"});export{Pt as VacuumScheduleCard};
