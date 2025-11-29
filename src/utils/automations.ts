@@ -6,6 +6,145 @@ import {
 } from "./api";
 
 /**
+ * Получает только автоматизации расписаний (vacuum_schedule_*_day_*)
+ * Оптимизированная версия: фильтрует по ID ДО получения полных конфигураций
+ * Это значительно быстрее, так как не нужно получать конфигурации для всех автоматизаций
+ */
+export async function getScheduleAutomations(
+  hass: HomeAssistant
+): Promise<any[]> {
+  try {
+    // Сначала получаем все автоматизации из hass.states
+    const automationEntities = Object.keys(hass.states).filter(
+      (entityId) => entityId.startsWith("automation.")
+    );
+
+    if (automationEntities.length === 0) {
+      return [];
+    }
+
+    // ФИЛЬТРАЦИЯ ПО ID ДО получения конфигураций - это ключевая оптимизация!
+    // Получаем ID из hass.states и фильтруем только те, которые соответствуют паттерну
+    const filteredEntities: Array<{ entityId: string; automationId: string; state: any }> = [];
+    
+    for (const entityId of automationEntities) {
+      const automationId = entityId.replace("automation.", "");
+      const state = hass.states[entityId];
+      
+      // Проверяем ID из атрибутов или используем automationId
+      const configId = state.attributes?.id || automationId;
+      
+      // Фильтруем только автоматизации расписаний: vacuum_schedule_*_day_*
+      if (configId.startsWith("vacuum_schedule_") && configId.includes("_day_")) {
+        filteredEntities.push({ entityId, automationId, state });
+      }
+    }
+
+    if (filteredEntities.length === 0) {
+      console.log(`[Vacuum Schedule Card] Не найдено автоматизаций расписаний`);
+      return [];
+    }
+
+    console.log(`[Vacuum Schedule Card] Найдено ${filteredEntities.length} автоматизаций расписаний (отфильтровано из ${automationEntities.length})`);
+
+    // Теперь получаем полные конфигурации ТОЛЬКО для отфильтрованных автоматизаций
+    const automationConfigs: any[] = [];
+    
+    // Используем Promise.all для параллельного получения конфигураций (быстрее)
+    const configPromises = filteredEntities.map(async ({ entityId, automationId, state }) => {
+      try {
+        let config: any = null;
+        
+        // Вариант 1: config/automation/config/get (новый формат)
+        try {
+          config = await hass.callWS<any>({
+            type: "config/automation/config/get",
+            automation_id: automationId,
+          });
+        } catch (e1: any) {
+          // Вариант 2: config/automation/get (альтернативный формат)
+          try {
+            config = await hass.callWS<any>({
+              type: "config/automation/get",
+              automation_id: automationId,
+            });
+          } catch (e2: any) {
+            // Вариант 3: automation/get (старый формат)
+            try {
+              config = await hass.callWS<any>({
+                type: "automation/get",
+                automation_id: automationId,
+              });
+            } catch (e3: any) {
+              // Если все варианты не работают, пробуем получить через REST API
+              try {
+                const token = hass.auth?.data?.access_token || hass.auth?.accessToken;
+                if (token) {
+                  const baseUrl = window.location.origin;
+                  const apiUrl = `${baseUrl}/api/config/automation/config/${automationId}`;
+                  const response = await fetch(apiUrl, {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      "Content-Type": "application/json",
+                    },
+                  });
+                  if (response.ok) {
+                    config = await response.json();
+                  }
+                }
+              } catch (restError: any) {
+                // Игнорируем ошибки REST API
+              }
+              
+              // Если REST API не сработал, используем данные из hass.states (но они неполные)
+              if (!config) {
+                config = {
+                  id: state.attributes?.id || automationId,
+                  alias: state.attributes?.friendly_name || automationId,
+                  _entity_id: entityId,
+                  _state: state.state,
+                  _attributes: state.attributes,
+                  _incomplete: true,
+                };
+              }
+            }
+          }
+        }
+
+        return config;
+      } catch (error: any) {
+        // В случае ошибки возвращаем неполную конфигурацию
+        return {
+          id: state.attributes?.id || automationId,
+          alias: state.attributes?.friendly_name || automationId,
+          _entity_id: entityId,
+          _state: state.state,
+          _attributes: state.attributes,
+          _incomplete: true,
+        };
+      }
+    });
+
+    // Ждем все запросы параллельно
+    const configs = await Promise.all(configPromises);
+    
+    // Фильтруем null/undefined
+    for (const config of configs) {
+      if (config) {
+        automationConfigs.push(config);
+      }
+    }
+
+    console.log(`[Vacuum Schedule Card] ✅ Получено ${automationConfigs.length} конфигураций автоматизаций расписаний`);
+    return automationConfigs;
+  } catch (error: any) {
+    console.warn("[Vacuum Schedule Card] Ошибка получения автоматизаций расписаний:", error);
+    return [];
+  }
+}
+
+/**
  * Получает список всех автоматизаций используя подход, похожий на lovelace-auto-entities
  * Использует hass.callWS для получения данных через WebSocket API
  * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
@@ -16,6 +155,8 @@ import {
  * Примечание: lovelace-auto-entities НЕ использует функции создания/обновления/удаления автоматизаций,
  * так как это карточка только для отображения сущностей. В нашем проекте мы используем эти функции,
  * так как наша карточка должна управлять автоматизациями расписаний.
+ * 
+ * ВНИМАНИЕ: Для получения только автоматизаций расписаний используйте getScheduleAutomations() - она быстрее!
  */
 export async function getAllAutomations(
   hass: HomeAssistant

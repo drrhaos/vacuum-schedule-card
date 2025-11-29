@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import type { VacuumScheduleCardConfig, Schedule, Room } from "./types";
 import {
+  getScheduleAutomations,
   getAllAutomations,
   parseScheduleFromAutomation,
   createOrUpdateAutomation,
@@ -142,19 +143,17 @@ class VacuumScheduleCard extends LitElement {
       // WebSocket API не поддерживает команду для получения списка всех автоматизаций,
       // поэтому используем REST API, который является официально поддерживаемым методом
       // Это оптимальнее, чем перебирать hass.states, так как имена там транслитерируются
-      const allAutomations = await getAllAutomations(this.hass);
+      // Используем оптимизированную функцию, которая фильтрует по ID ДО получения конфигураций
+      const allAutomations = await getScheduleAutomations(this.hass);
 
-      console.log(`[Vacuum Schedule Card] ✅ Автоматизации успешно получены: ${allAutomations.length} шт.`);
-      console.log(`[Vacuum Schedule Card] Начинаем фильтрацию автоматизаций по ID...`);
+      console.log(`[Vacuum Schedule Card] ✅ Автоматизации расписаний получены: ${allAutomations.length} шт.`);
 
       // Обрабатываем каждую автоматизацию
-      // ВАЖНО: Фильтрация происходит строго по ID (config.id), а не по entity_id
-      // Это необходимо, так как entity_id может быть транслитерирован в Home Assistant
+      // Фильтрация уже выполнена в getScheduleAutomations, но проверяем еще раз для надежности
       let filteredCount = 0;
       for (const automationConfig of allAutomations) {
         try {
           // Получаем ID автоматизации из конфигурации
-          // ВАЖНО: Используем только config.id для фильтрации, не entity_id!
           const configId = automationConfig.id || "";
           
           if (!configId) {
@@ -162,26 +161,13 @@ class VacuumScheduleCard extends LitElement {
             continue;
           }
           
-          // Логируем для отладки автоматизации, относящиеся к расписаниям
-          if (configId.includes("vacuum_schedule")) {
-            console.log(`[Vacuum Schedule Card] 🔍 Найдена потенциальная автоматизация расписания (по ID):`, {
-              id: configId,
-              hasTrigger: !!automationConfig.trigger,
-              hasAction: !!automationConfig.action,
-            });
-          }
-          
-          // ФИЛЬТРАЦИЯ ПО ID:
-          // Автоматизация должна иметь ID, который:
-          // 1. Начинается с "vacuum_schedule_"
-          // 2. Содержит "_day_" (указывает на день недели)
-          // Формат ID: vacuum_schedule_{scheduleId}_day_{day}
+          // Дополнительная проверка (на всякий случай)
           if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
-            continue; // Пропускаем автоматизации, не соответствующие фильтру по ID
+            continue;
           }
           
           filteredCount++;
-          console.log(`[Vacuum Schedule Card] ✅ Автоматизация прошла фильтр по ID: ${configId}`);
+          console.log(`[Vacuum Schedule Card] ✅ Обработка автоматизации: ${configId}`);
 
           // Получаем состояние автоматизации из hass.states
           // entity_id формируется из alias после транслитерации, поэтому ищем по атрибутам
