@@ -276,9 +276,9 @@ class VacuumScheduleCard extends LitElement {
       }
       .card {
         padding: 16px;
-        background: var(--card-background-color, #fff);
-        border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background: var(--card-background-color, var(--ha-card-background, #fff));
+        border-radius: var(--ha-card-border-radius, 4px);
+        box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0,0,0,0.1));
       }
       .header {
         font-size: 18px;
@@ -293,9 +293,9 @@ class VacuumScheduleCard extends LitElement {
         color: var(--primary-text-color);
       }
       .error {
-        color: var(--error-color, #f44336);
+        color: var(--error-color, var(--state-error-color, #f44336));
         padding: 8px;
-        background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+        background: var(--error-background-color, var(--state-error-color, rgba(244, 67, 54, 0.1)));
         border-radius: 4px;
         margin-bottom: 16px;
       }
@@ -310,9 +310,9 @@ class VacuumScheduleCard extends LitElement {
       .schedule-item {
         padding: 12px;
         margin-bottom: 8px;
-        background: var(--card-background-color, #fff);
-        border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-        border-radius: 4px;
+        background: var(--card-background-color, var(--ha-card-background, #fff));
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        border-radius: var(--ha-card-border-radius, 4px);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -320,7 +320,7 @@ class VacuumScheduleCard extends LitElement {
         transition: background 0.2s;
       }
       .schedule-item:hover {
-        background: var(--divider-color, rgba(0,0,0,0.05));
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.05)));
       }
       .schedule-actions {
         display: flex;
@@ -358,14 +358,15 @@ class VacuumScheduleCard extends LitElement {
         width: 100%;
       }
       ha-button {
-        --mdc-theme-primary: var(--primary-color);
+        --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
+        --mdc-theme-on-primary: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
       }
       .control-panel {
         margin-bottom: 24px;
         padding: 16px;
-        background: var(--card-background-color, #fff);
-        border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-        border-radius: 4px;
+        background: var(--card-background-color, var(--ha-card-background, #fff));
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        border-radius: var(--ha-card-border-radius, 4px);
       }
       .control-panel-status {
         font-size: 12px;
@@ -393,43 +394,134 @@ class VacuumScheduleCard extends LitElement {
       .rooms-row {
         margin-top: 12px;
         padding-top: 12px;
-        border-top: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+        border-top: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
       }
       .room-button {
         flex: 1;
         min-width: 80px;
-        --mdc-theme-primary: var(--primary-color);
+        max-width: 100%;
+        --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
+        position: relative;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        border-radius: 8px;
+        background: var(--card-background-color, var(--ha-card-background, #fff));
+        box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.08));
+        padding: 8px 4px;
+        margin: 2px;
+        cursor: pointer;
+        overflow: hidden;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .room-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--primary-color);
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        pointer-events: none;
       }
       .room-button .button-content {
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 4px;
-        padding: 4px 0;
+        padding: 4px 2px;
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
       .room-button .button-icon {
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1;
+        transition: transform 0.15s ease, filter 0.15s ease;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        max-width: 100%;
+        max-height: 28px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .room-button .button-label {
-        font-size: 13px;
-        font-weight: 500;
+        font-size: 12px;
+        font-weight: 600;
         line-height: 1.2;
         text-align: center;
+        color: var(--primary-text-color);
+        transition: color 0.15s ease;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 0 2px;
+        box-sizing: border-box;
       }
       .room-button .button-id {
-        font-size: 11px;
-        opacity: 0.7;
+        font-size: 10px;
+        opacity: 0.6;
         line-height: 1;
         font-family: monospace;
+        color: var(--secondary-text-color);
+        transition: opacity 0.15s ease, color 0.15s ease;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 0 2px;
+        box-sizing: border-box;
       }
-      .room-button.selected {
-        --mdc-theme-primary: var(--primary-color);
-        background: var(--primary-color);
-        color: var(--text-primary-color, #fff);
+      .room-button.pressed {
+        --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
+        background: var(--primary-color, var(--mdc-theme-primary));
+        border-color: var(--primary-color, var(--mdc-theme-primary));
+        box-shadow: inset 0 2px 8px rgba(0,0,0,0.2), 
+                    var(--ha-card-box-shadow, 0 1px 2px rgba(0,0,0,0.1));
+        transform: translateY(1px);
       }
-      .room-button.selected .button-id {
+      .room-button.pressed::before {
+        opacity: 0.1;
+      }
+      .room-button.pressed .button-icon {
+        transform: scale(1.05);
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        max-height: 28px;
+      }
+      .room-button.pressed .button-label {
+        color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
+        font-weight: 700;
+      }
+      .room-button.pressed .button-id {
         opacity: 0.9;
+        color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
+      }
+      .room-button:active:not(.pressed) {
+        transform: translateY(2px) scale(0.98);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      }
+      .room-button:hover:not(.pressed) {
+        border-color: var(--primary-color, var(--mdc-theme-primary));
+        box-shadow: var(--ha-card-box-shadow, 0 4px 8px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08));
+        transform: translateY(-1px);
+      }
+      .room-button:hover:not(.pressed)::before {
+        opacity: 0.05;
+      }
+      .room-button:hover:not(.pressed) .button-icon {
+        transform: scale(1.05);
+        max-height: 28px;
       }
       .dialog {
         position: fixed !important;
@@ -437,7 +529,7 @@ class VacuumScheduleCard extends LitElement {
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        background: rgba(0, 0, 0, 0.5) !important;
+        background: var(--ha-dialog-backdrop, rgba(0, 0, 0, 0.5)) !important;
         display: flex !important;
         align-items: center;
         justify-content: center;
@@ -445,14 +537,14 @@ class VacuumScheduleCard extends LitElement {
         pointer-events: auto;
       }
       .dialog-content {
-        background: var(--card-background-color, #fff) !important;
-        border-radius: 8px;
+        background: var(--card-background-color, var(--ha-card-background, var(--primary-background-color, #fff))) !important;
+        border-radius: var(--ha-card-border-radius, 8px);
         padding: 24px;
         max-width: 500px;
         width: 90%;
         max-height: 90vh;
         overflow-y: auto;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        box-shadow: var(--ha-card-box-shadow, 0 8px 16px rgba(0,0,0,0.2));
         position: relative;
         z-index: 100000;
       }
@@ -480,28 +572,30 @@ class VacuumScheduleCard extends LitElement {
         flex: 1;
         min-width: 50px;
         padding: 8px;
-        border: 2px solid var(--divider-color, rgba(0,0,0,0.12));
-        border-radius: 4px;
-        background: var(--card-background-color, #fff);
+        border: 2px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        border-radius: var(--ha-card-border-radius, 4px);
+        background: var(--card-background-color, var(--ha-card-background, #fff));
         color: var(--primary-text-color);
         cursor: pointer;
         text-align: center;
         transition: all 0.2s;
       }
       .day-button:hover {
-        border-color: var(--primary-color);
+        border-color: var(--primary-color, var(--mdc-theme-primary));
       }
       .day-button.selected {
-        background: var(--primary-color);
-        color: var(--text-primary-color, #fff);
-        border-color: var(--primary-color);
+        background: var(--primary-color, var(--mdc-theme-primary));
+        color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
+        border-color: var(--primary-color, var(--mdc-theme-primary));
       }
       .time-input {
         width: 100%;
         padding: 8px;
-        border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-        border-radius: 4px;
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        border-radius: var(--ha-card-border-radius, 4px);
         font-size: 16px;
+        background: var(--card-background-color, var(--ha-card-background, #fff));
+        color: var(--primary-text-color);
       }
       .rooms-selector {
         display: flex;
@@ -510,8 +604,9 @@ class VacuumScheduleCard extends LitElement {
         max-height: 200px;
         overflow-y: auto;
         padding: 8px;
-        border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
-        border-radius: 4px;
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        border-radius: var(--ha-card-border-radius, 4px);
+        background: var(--card-background-color, var(--ha-card-background, #fff));
       }
       .room-item {
         display: flex;
@@ -522,7 +617,7 @@ class VacuumScheduleCard extends LitElement {
         transition: background 0.2s;
       }
       .room-item:hover {
-        background: var(--divider-color, rgba(0,0,0,0.05));
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.05)));
       }
       .room-checkbox {
         margin-right: 8px;
@@ -530,7 +625,7 @@ class VacuumScheduleCard extends LitElement {
       .select-all-rooms {
         margin-bottom: 8px;
         padding: 8px;
-        border-bottom: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+        border-bottom: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
       }
       .dialog-actions {
         display: flex;
@@ -630,53 +725,58 @@ class VacuumScheduleCard extends LitElement {
           Статус: <strong>${this._getStateLabel(vacuumState)}</strong>
         </div>
         <div class="control-row">
-          <ha-button 
-            class="control-button"
-            .disabled=${isStartDisabled}
-            @click=${() => !isStartDisabled && this._startVacuum()}
-            title="${isStartDisabled ? this._t("start") + " (недоступно)" : this._t("start") || "Запуск"}"
-          >
-            ▶️ ${this._t("start") || "Запуск"}
-          </ha-button>
-          <ha-button 
-            class="control-button"
-            .disabled=${isStopDisabled}
-            @click=${() => !isStopDisabled && this._stopVacuum()}
-            title="${isStopDisabled ? this._t("stop") + " (недоступно)" : this._t("stop") || "Остановка"}"
-          >
-            ⏹️ ${this._t("stop") || "Остановка"}
-          </ha-button>
-          <ha-button 
-            class="control-button"
-            .disabled=${isPauseDisabled}
-            @click=${() => !isPauseDisabled && this._pauseVacuum()}
-            title="${isPauseDisabled ? this._t("pause") + " (недоступно)" : this._t("pause") || "Пауза"}"
-          >
-            ⏸️ ${this._t("pause") || "Пауза"}
-          </ha-button>
-          <ha-button 
-            class="control-button"
-            .disabled=${isReturnDisabled}
-            @click=${() => !isReturnDisabled && this._returnToBase()}
-            title="${isReturnDisabled ? this._t("return_to_base") + " (недоступно)" : this._t("return_to_base") || "На станцию"}"
-          >
-            🏠 ${this._t("return_to_base") || "На станцию"}
-          </ha-button>
+          ${!isStartDisabled ? html`
+            <ha-button 
+              class="control-button"
+              @click=${() => this._startVacuum()}
+              title="${this._t("start") || "Запуск"}"
+            >
+              ▶️ ${this._t("start") || "Запуск"}
+            </ha-button>
+          ` : ""}
+          ${!isStopDisabled ? html`
+            <ha-button 
+              class="control-button"
+              @click=${() => this._stopVacuum()}
+              title="${this._t("stop") || "Остановка"}"
+            >
+              ⏹️ ${this._t("stop") || "Остановка"}
+            </ha-button>
+          ` : ""}
+          ${!isPauseDisabled ? html`
+            <ha-button 
+              class="control-button"
+              @click=${() => this._pauseVacuum()}
+              title="${this._t("pause") || "Пауза"}"
+            >
+              ⏸️ ${this._t("pause") || "Пауза"}
+            </ha-button>
+          ` : ""}
+          ${!isReturnDisabled ? html`
+            <ha-button 
+              class="control-button"
+              @click=${() => this._returnToBase()}
+              title="${this._t("return_to_base") || "На станцию"}"
+            >
+              🏠 ${this._t("return_to_base") || "На станцию"}
+            </ha-button>
+          ` : ""}
         </div>
         <div class="control-row rooms-row">
           ${this._rooms.length > 0 ? html`
             <ha-button 
-              class="room-button ${this._selectedRoomsForControl.length === 0 ? "selected" : ""}"
+              class="room-button ${this._selectedRoomsForControl.length === 0 ? "pressed" : ""}"
               @click=${() => this._toggleAllRooms()}
               title="${this._t("all_rooms")}"
             >
               <span class="button-content">
-                ${this._getRoomIcon(0)} ${this._t("all_rooms")}
+                <span class="button-icon">${this._getRoomIcon(0)}</span>
+                <span class="button-label">${this._t("all_rooms")}</span>
               </span>
             </ha-button>
             ${this._rooms.map((room) => html`
               <ha-button 
-                class="room-button ${this._selectedRoomsForControl.includes(room.id) ? "selected" : ""}"
+                class="room-button ${this._selectedRoomsForControl.includes(room.id) ? "pressed" : ""}"
                 @click=${() => this._toggleRoom(room.id)}
                 title="${room.name}${this._shouldShowRoomIds() ? ` (ID: ${room.id})` : ""}"
               >
