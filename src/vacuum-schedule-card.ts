@@ -244,10 +244,10 @@ class VacuumScheduleCard extends LitElement {
         }
       }
 
-      // Логируем результаты фильтрации по ID
-      console.log(`[Vacuum Schedule Card] ✅ Фильтрация завершена:`);
-      console.log(`  - Всего получено автоматизаций: ${allAutomations.length}`);
-      console.log(`  - Отфильтровано по ID (vacuum_schedule_*_day_*): ${filteredCount}`);
+      // Логируем результаты обработки
+      console.log(`[Vacuum Schedule Card] ✅ Обработка завершена:`);
+      console.log(`  - Получено автоматизаций расписаний: ${allAutomations.length}`);
+      console.log(`  - Успешно обработано: ${filteredCount}`);
       console.log(`  - Создано расписаний: ${automationsMap.size}`);
       
       // Подробное логирование найденных расписаний
