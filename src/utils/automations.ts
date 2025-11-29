@@ -8,6 +8,10 @@ import type { Schedule } from "../types";
  * 
  * Подход основан на примере из lovelace-auto-entities:
  * https://github.com/thomasloven/lovelace-auto-entities
+ * 
+ * Примечание: lovelace-auto-entities НЕ использует функции создания/обновления/удаления автоматизаций,
+ * так как это карточка только для отображения сущностей. В нашем проекте мы используем эти функции,
+ * так как наша карточка должна управлять автоматизациями расписаний.
  */
 export async function getAllAutomations(
   hass: HomeAssistant
@@ -90,12 +94,32 @@ export async function getAllAutomations(
     }
 
     if (automationConfigs.length > 0) {
-      console.log(`Получено ${automationConfigs.length} конфигураций автоматизаций`);
+      console.log(`[Vacuum Schedule Card] Получено ${automationConfigs.length} конфигураций автоматизаций`);
+      
+      // Подробное логирование списка автоматизаций
+      console.group("[Vacuum Schedule Card] Список всех автоматизаций:");
+      automationConfigs.forEach((config, index) => {
+        console.log(`${index + 1}. ID: ${config.id || config._entity_id || "неизвестно"}`);
+        console.log(`   Alias: ${config.alias || config._attributes?.friendly_name || "нет"}`);
+        console.log(`   Entity ID: ${config._entity_id || "нет"}`);
+        console.log(`   State: ${config._state || config.state || "неизвестно"}`);
+        if (config.trigger) {
+          console.log(`   Trigger: ${JSON.stringify(config.trigger).substring(0, 100)}...`);
+        }
+        if (config.action) {
+          console.log(`   Action: ${JSON.stringify(config.action).substring(0, 100)}...`);
+        }
+        if (config.id?.includes("vacuum_schedule")) {
+          console.log(`   ⭐ Относится к расписаниям уборки`);
+        }
+      });
+      console.groupEnd();
+      
       return automationConfigs;
     }
 
     // Fallback: возвращаем объекты из состояний
-    return automationEntities.map((entityId) => {
+    const fallbackAutomations = automationEntities.map((entityId) => {
       const state = hass.states[entityId];
       const automationId = entityId.replace("automation.", "");
       
@@ -107,6 +131,22 @@ export async function getAllAutomations(
         _attributes: state.attributes,
       };
     });
+    
+    // Логирование для fallback
+    console.log(`[Vacuum Schedule Card] Используется fallback: получено ${fallbackAutomations.length} автоматизаций из hass.states`);
+    console.group("[Vacuum Schedule Card] Список автоматизаций (fallback):");
+    fallbackAutomations.forEach((automation, index) => {
+      console.log(`${index + 1}. Entity ID: ${automation._entity_id}`);
+      console.log(`   ID: ${automation.id}`);
+      console.log(`   Alias: ${automation.alias}`);
+      console.log(`   State: ${automation._state}`);
+      if (automation.id?.includes("vacuum_schedule")) {
+        console.log(`   ⭐ Относится к расписаниям уборки`);
+      }
+    });
+    console.groupEnd();
+    
+    return fallbackAutomations;
   } catch (error: any) {
     console.warn("Ошибка получения списка автоматизаций:", error);
     return [];
@@ -177,8 +217,11 @@ export function parseScheduleFromAutomation(
 
 /**
  * Создает или обновляет автоматизацию
- * Использует задокументированную команду call_service из WebSocket API
+ * Использует hass.callWS для создания/обновления автоматизации через WebSocket API
  * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+ * 
+ * Примечание: lovelace-auto-entities не использует такие функции, так как только отображает сущности.
+ * В нашем проекте мы управляем автоматизациями, поэтому используем эти функции.
  */
 export async function createOrUpdateAutomation(
   hass: HomeAssistant,
@@ -190,11 +233,13 @@ export async function createOrUpdateAutomation(
     const existingAutomation = allAutomations.find((a: any) => a.id === automation.id);
     const isUpdate = !!existingAutomation;
 
-    console.log(`Попытка ${isUpdate ? "обновить" : "создать"} автоматизацию:`, {
+    console.log(`[Vacuum Schedule Card] Попытка ${isUpdate ? "обновить" : "создать"} автоматизацию:`, {
       id: automation.id,
       alias: automation.alias,
       hasTrigger: !!automation.trigger,
       hasAction: !!automation.action,
+      trigger: automation.trigger,
+      action: automation.action,
     });
 
     // Используем hass.callWS для создания/обновления автоматизации (как в lovelace-auto-entities)
@@ -222,7 +267,14 @@ export async function createOrUpdateAutomation(
         } catch (reloadError) {
           console.warn("Не удалось перезагрузить автоматизации:", reloadError);
         }
-        console.log(`Автоматизация ${automation.id} успешно ${isUpdate ? "обновлена" : "создана"}`);
+        console.log(`[Vacuum Schedule Card] ✅ Автоматизация ${automation.id} успешно ${isUpdate ? "обновлена" : "создана"}`);
+        console.log(`[Vacuum Schedule Card] Детали автоматизации:`, {
+          id: automation.id,
+          alias: automation.alias,
+          trigger: automation.trigger,
+          condition: automation.condition,
+          action: automation.action,
+        });
         return true;
       } catch (error: any) {
         // Если update не работает, пробуем удалить и создать заново
@@ -253,7 +305,14 @@ export async function createOrUpdateAutomation(
             } catch (reloadError) {
               console.warn("Не удалось перезагрузить автоматизации:", reloadError);
             }
-            console.log(`Автоматизация ${automation.id} успешно обновлена (удалена и создана заново)`);
+            console.log(`[Vacuum Schedule Card] ✅ Автоматизация ${automation.id} успешно обновлена (удалена и создана заново)`);
+            console.log(`[Vacuum Schedule Card] Детали автоматизации:`, {
+              id: automation.id,
+              alias: automation.alias,
+              trigger: automation.trigger,
+              condition: automation.condition,
+              action: automation.action,
+            });
             return true;
           } catch (deleteError: any) {
             console.warn("Ошибка при попытке удалить автоматизацию:", deleteError);
@@ -261,14 +320,22 @@ export async function createOrUpdateAutomation(
         }
         
         console.error(
-          `Не удалось ${isUpdate ? "обновить" : "создать"} автоматизацию ${automation.id}:`,
+          `[Vacuum Schedule Card] ❌ Не удалось ${isUpdate ? "обновить" : "создать"} автоматизацию ${automation.id}:`,
           error
         );
+        console.error(`[Vacuum Schedule Card] Детали ошибки:`, {
+          code: error.code,
+          message: error.message,
+          automation: {
+            id: automation.id,
+            alias: automation.alias,
+          },
+        });
         return false;
       }
     } catch (error: any) {
       console.error(
-        `Ошибка ${isUpdate ? "обновления" : "создания"} автоматизации ${automation.id}:`,
+        `[Vacuum Schedule Card] ❌ Ошибка ${isUpdate ? "обновления" : "создания"} автоматизации ${automation.id}:`,
         error
       );
       return false;
@@ -281,14 +348,19 @@ export async function createOrUpdateAutomation(
 
 /**
  * Удаляет автоматизацию
- * Использует задокументированную команду call_service из WebSocket API
+ * Использует hass.callWS для удаления автоматизации через WebSocket API
  * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+ * 
+ * Примечание: lovelace-auto-entities не использует такие функции, так как только отображает сущности.
+ * В нашем проекте мы управляем автоматизациями, поэтому используем эти функции.
  */
 export async function deleteAutomation(
   hass: HomeAssistant,
   automationId: string
 ): Promise<boolean> {
   try {
+    console.log(`[Vacuum Schedule Card] Попытка удалить автоматизацию: ${automationId}`);
+    
     // Используем hass.callWS для удаления автоматизации (как в lovelace-auto-entities)
     try {
       await hass.callWS({
@@ -296,12 +368,14 @@ export async function deleteAutomation(
         automation_id: automationId,
       });
 
+      console.log(`[Vacuum Schedule Card] ✅ Автоматизация ${automationId} успешно удалена`);
+
       // Перезагружаем автоматизации для обновления кеша
       try {
         await hass.callService("automation", "reload");
         await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (reloadError) {
-        console.warn("Не удалось перезагрузить автоматизации:", reloadError);
+        console.warn("[Vacuum Schedule Card] Не удалось перезагрузить автоматизации:", reloadError);
       }
       return true;
     } catch (error: any) {
@@ -311,17 +385,18 @@ export async function deleteAutomation(
           await hass.callService("automation", "delete", {
             id: automationId,
           });
+          console.log(`[Vacuum Schedule Card] ✅ Автоматизация ${automationId} удалена через сервис`);
           return true;
         } catch (serviceError) {
-          console.warn(`Не удалось удалить автоматизацию ${automationId}:`, serviceError);
+          console.warn(`[Vacuum Schedule Card] ❌ Не удалось удалить автоматизацию ${automationId} через сервис:`, serviceError);
           return false;
         }
       }
-      console.warn(`Не удалось удалить автоматизацию ${automationId}:`, error);
+      console.warn(`[Vacuum Schedule Card] ❌ Не удалось удалить автоматизацию ${automationId}:`, error);
       return false;
     }
   } catch (error) {
-    console.warn(`Ошибка удаления автоматизации ${automationId}:`, error);
+    console.warn(`[Vacuum Schedule Card] ❌ Ошибка удаления автоматизации ${automationId}:`, error);
     return false;
   }
 }

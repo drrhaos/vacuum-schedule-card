@@ -144,7 +144,7 @@ class VacuumScheduleCard extends LitElement {
       // Это оптимальнее, чем перебирать hass.states, так как имена там транслитерируются
       const allAutomations = await getAllAutomations(this.hass);
 
-      console.log("Всего автоматизаций получено:", allAutomations.length);
+      console.log(`[Vacuum Schedule Card] Всего автоматизаций получено: ${allAutomations.length}`);
 
       // Обрабатываем каждую автоматизацию
       for (const automationConfig of allAutomations) {
@@ -230,8 +230,21 @@ class VacuumScheduleCard extends LitElement {
       }
 
       // Логируем результаты
-      console.log("Всего обработано автоматизаций:", allAutomations.length);
-      console.log("Создано расписаний:", automationsMap.size);
+      console.log(`[Vacuum Schedule Card] Всего обработано автоматизаций: ${allAutomations.length}`);
+      console.log(`[Vacuum Schedule Card] Создано расписаний: ${automationsMap.size}`);
+      
+      // Подробное логирование найденных расписаний
+      if (automationsMap.size > 0) {
+        console.group("[Vacuum Schedule Card] Найденные расписания:");
+        automationsMap.forEach((schedule, scheduleId) => {
+          console.log(`Расписание ${scheduleId}:`);
+          console.log(`  - Время: ${schedule.time}`);
+          console.log(`  - Дни: ${schedule.days.join(", ")}`);
+          console.log(`  - Комнаты: ${schedule.rooms.length > 0 ? schedule.rooms.join(", ") : "все"}`);
+          console.log(`  - Включено: ${schedule.enabled ? "да" : "нет"}`);
+        });
+        console.groupEnd();
+      }
 
       // Сортируем дни в каждом расписании
       for (const schedule of automationsMap.values()) {
