@@ -10,6 +10,7 @@ declare class VacuumScheduleCard extends LitElement {
     private _showAddDialog;
     private _editingSchedule?;
     private _rooms;
+    private _selectedRoomsForControl;
     private _config?;
     private _newSchedule;
     setConfig(config: VacuumScheduleCardConfig): void;
@@ -47,6 +48,15 @@ declare class VacuumScheduleCard extends LitElement {
     private _getDayNames;
     private _formatDays;
     private _formatRooms;
+    private _shouldShowRoomIds;
+    private _getRoomIcon;
+    private _renderControlPanel;
+    private _toggleRoom;
+    private _toggleAllRooms;
+    private _startVacuum;
+    private _stopVacuum;
+    private _pauseVacuum;
+    private _returnToBase;
     render(): import("lit-html").TemplateResult<1>;
     private _addSchedule;
     private _toggleDay;

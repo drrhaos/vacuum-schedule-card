@@ -1,6 +1,8 @@
 export interface VacuumScheduleCardConfig {
     entity: string;
     type: string;
+    show_room_ids?: boolean;
+    room_icons?: Record<number, string>;
 }
 export interface Schedule {
     id: string;

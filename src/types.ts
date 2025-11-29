@@ -1,6 +1,8 @@
 export interface VacuumScheduleCardConfig {
   entity: string;
   type: string;
+  show_room_ids?: boolean; // Показывать ID комнат на кнопках
+  room_icons?: Record<number, string>; // Иконки для комнат по ID: { 16: "🛋️", 17: "🛏️" }
 }
 
 export interface Schedule {

@@ -23,6 +23,7 @@ class VacuumScheduleCard extends LitElement {
   @state() private _showAddDialog = false;
   @state() private _editingSchedule?: Schedule;
   @state() private _rooms: Room[] = [];
+  @state() private _selectedRoomsForControl: number[] = [];
   private _config?: VacuumScheduleCardConfig;
   
   // Форма нового расписания
@@ -235,6 +236,8 @@ class VacuumScheduleCard extends LitElement {
     return {
       entity: "vacuum.example",
       type: "custom:vacuum-schedule-card",
+      show_room_ids: false,
+      room_icons: {},
     };
   }
 
@@ -356,6 +359,67 @@ class VacuumScheduleCard extends LitElement {
       }
       ha-button {
         --mdc-theme-primary: var(--primary-color);
+      }
+      .control-panel {
+        margin-bottom: 24px;
+        padding: 16px;
+        background: var(--card-background-color, #fff);
+        border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+        border-radius: 4px;
+      }
+      .control-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .control-row:last-child {
+        margin-bottom: 0;
+      }
+      .control-button {
+        flex: 1;
+        min-width: 100px;
+      }
+      .rooms-row {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+      }
+      .room-button {
+        flex: 1;
+        min-width: 80px;
+        --mdc-theme-primary: var(--primary-color);
+      }
+      .room-button .button-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 0;
+      }
+      .room-button .button-icon {
+        font-size: 20px;
+        line-height: 1;
+      }
+      .room-button .button-label {
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.2;
+        text-align: center;
+      }
+      .room-button .button-id {
+        font-size: 11px;
+        opacity: 0.7;
+        line-height: 1;
+        font-family: monospace;
+      }
+      .room-button.selected {
+        --mdc-theme-primary: var(--primary-color);
+        background: var(--primary-color);
+        color: var(--text-primary-color, #fff);
+      }
+      .room-button.selected .button-id {
+        opacity: 0.9;
       }
       .dialog {
         position: fixed !important;
@@ -490,6 +554,164 @@ class VacuumScheduleCard extends LitElement {
     return formatRooms(roomIds, this._rooms, this._t("all_rooms"));
   }
 
+  private _shouldShowRoomIds(): boolean {
+    return this._config?.show_room_ids === true;
+  }
+
+  private _getRoomIcon(roomId: number): string {
+    if (roomId === 0) {
+      return "🏠";
+    }
+    return this._config?.room_icons?.[roomId] || "🏠";
+  }
+
+  private _renderControlPanel() {
+    return html`
+      <div class="control-panel">
+        <div class="control-row">
+          <ha-button 
+            class="control-button"
+            @click=${() => this._startVacuum()}
+            title="${this._t("start") || "Запуск"}"
+          >
+            ▶️ ${this._t("start") || "Запуск"}
+          </ha-button>
+          <ha-button 
+            class="control-button"
+            @click=${() => this._stopVacuum()}
+            title="${this._t("stop") || "Остановка"}"
+          >
+            ⏹️ ${this._t("stop") || "Остановка"}
+          </ha-button>
+          <ha-button 
+            class="control-button"
+            @click=${() => this._pauseVacuum()}
+            title="${this._t("pause") || "Пауза"}"
+          >
+            ⏸️ ${this._t("pause") || "Пауза"}
+          </ha-button>
+          <ha-button 
+            class="control-button"
+            @click=${() => this._returnToBase()}
+            title="${this._t("return_to_base") || "На станцию"}"
+          >
+            🏠 ${this._t("return_to_base") || "На станцию"}
+          </ha-button>
+        </div>
+        <div class="control-row rooms-row">
+          ${this._rooms.length > 0 ? html`
+            <ha-button 
+              class="room-button ${this._selectedRoomsForControl.length === 0 ? "selected" : ""}"
+              @click=${() => this._toggleAllRooms()}
+              title="${this._t("all_rooms")}"
+            >
+              <span class="button-content">
+                ${this._getRoomIcon(0)} ${this._t("all_rooms")}
+              </span>
+            </ha-button>
+            ${this._rooms.map((room) => html`
+              <ha-button 
+                class="room-button ${this._selectedRoomsForControl.includes(room.id) ? "selected" : ""}"
+                @click=${() => this._toggleRoom(room.id)}
+                title="${room.name}${this._shouldShowRoomIds() ? ` (ID: ${room.id})` : ""}"
+              >
+                <span class="button-content">
+                  <span class="button-icon">${this._getRoomIcon(room.id)}</span>
+                  <span class="button-label">${room.name}</span>
+                  ${this._shouldShowRoomIds() ? html`<span class="button-id">${room.id}</span>` : ""}
+                </span>
+              </ha-button>
+            `)}
+          ` : html`<div class="content">${this._t("rooms_not_found")}</div>`}
+        </div>
+      </div>
+    `;
+  }
+
+  private _toggleRoom(roomId: number): void {
+    const index = this._selectedRoomsForControl.indexOf(roomId);
+    if (index > -1) {
+      this._selectedRoomsForControl = this._selectedRoomsForControl.filter(id => id !== roomId);
+    } else {
+      this._selectedRoomsForControl = [...this._selectedRoomsForControl, roomId];
+    }
+    this.requestUpdate();
+  }
+
+  private _toggleAllRooms(): void {
+    if (this._selectedRoomsForControl.length === 0) {
+      this._selectedRoomsForControl = this._rooms.map(r => r.id);
+    } else {
+      this._selectedRoomsForControl = [];
+    }
+    this.requestUpdate();
+  }
+
+  private async _startVacuum(): Promise<void> {
+    if (!this.hass || !this.entity) return;
+
+    try {
+      if (this._selectedRoomsForControl.length > 0) {
+        // Уборка выбранных комнат
+        await this.hass.callService("dreame_vacuum", "vacuum_clean_segment", {
+          entity_id: this.entity,
+          segments: this._selectedRoomsForControl,
+        });
+      } else {
+        // Уборка всего дома
+        await this.hass.callService("vacuum", "start", {
+          entity_id: this.entity,
+        });
+      }
+    } catch (error) {
+      console.error("[Vacuum Schedule Card] Ошибка запуска уборки:", error);
+      this._error = `${this._t("error_starting") || "Ошибка запуска"}: ${error}`;
+      this.requestUpdate();
+    }
+  }
+
+  private async _stopVacuum(): Promise<void> {
+    if (!this.hass || !this.entity) return;
+
+    try {
+      await this.hass.callService("vacuum", "stop", {
+        entity_id: this.entity,
+      });
+    } catch (error) {
+      console.error("[Vacuum Schedule Card] Ошибка остановки уборки:", error);
+      this._error = `${this._t("error_stopping") || "Ошибка остановки"}: ${error}`;
+      this.requestUpdate();
+    }
+  }
+
+  private async _pauseVacuum(): Promise<void> {
+    if (!this.hass || !this.entity) return;
+
+    try {
+      await this.hass.callService("vacuum", "pause", {
+        entity_id: this.entity,
+      });
+    } catch (error) {
+      console.error("[Vacuum Schedule Card] Ошибка паузы уборки:", error);
+      this._error = `${this._t("error_pausing") || "Ошибка паузы"}: ${error}`;
+      this.requestUpdate();
+    }
+  }
+
+  private async _returnToBase(): Promise<void> {
+    if (!this.hass || !this.entity) return;
+
+    try {
+      await this.hass.callService("vacuum", "return_to_base", {
+        entity_id: this.entity,
+      });
+    } catch (error) {
+      console.error("[Vacuum Schedule Card] Ошибка возврата на станцию:", error);
+      this._error = `${this._t("error_returning") || "Ошибка возврата"}: ${error}`;
+      this.requestUpdate();
+    }
+  }
+
   render() {
     if (!this.hass || !this.entity) {
       return html`<div class="card">
@@ -513,6 +735,8 @@ class VacuumScheduleCard extends LitElement {
           </div>
           
           ${this._error && !this._showAddDialog ? html`<div class="error">${this._error}</div>` : ""}
+          
+          ${this._renderControlPanel()}
           
           ${this._loading
             ? html`<div class="loading">${this._t("loading")}</div>`
