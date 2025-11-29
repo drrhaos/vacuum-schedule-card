@@ -686,6 +686,11 @@ function t(t,e,o,r){var i,s=arguments.length,a=s<3?e:null===r?r=Object.getOwnPro
         <div class="content">${this._t("error_no_entity")}</div>
       </ha-card>`;return this.hass.states[this.entity]?H`
       <ha-card>
+        <div class="header">
+          <span>${this._config?.title||"Пылесос"}</span>
+          <span>${this._schedules.length} ${this._t("schedules_count")}</span>
+        </div>
+        
         <vacuum-control-panel
           .hass=${this.hass}
           .entity=${this.entity}
@@ -698,11 +703,6 @@ function t(t,e,o,r){var i,s=arguments.length,a=s<3?e:null===r?r=Object.getOwnPro
           @all-rooms-toggled=${this._handleAllRoomsToggled}
           @error=${this._handleError}
         ></vacuum-control-panel>
-        
-        <div class="header">
-          <span>${this._config?.title||this._t("schedule_title")}</span>
-          <span>${this._schedules.length} ${this._t("schedules_count")}</span>
-        </div>
           
         ${this._error&&!this._showAddDialog?H`<div class="error">${this._error}</div>`:""}
           
@@ -744,9 +744,11 @@ function t(t,e,o,r){var i,s=arguments.length,a=s<3?e:null===r?r=Object.getOwnPro
         position: relative;
       }
       .header {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 500;
         margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--divider-color, var(--ha-card-border-color));
         color: var(--primary-text-color);
         display: flex;
         justify-content: space-between;

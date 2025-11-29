@@ -267,6 +267,11 @@ class VacuumScheduleCard extends LitElement {
 
     return html`
       <ha-card>
+        <div class="header">
+          <span>${this._config?.title || "Пылесос"}</span>
+          <span>${this._schedules.length} ${this._t("schedules_count")}</span>
+        </div>
+        
         <vacuum-control-panel
           .hass=${this.hass}
           .entity=${this.entity}
@@ -279,11 +284,6 @@ class VacuumScheduleCard extends LitElement {
           @all-rooms-toggled=${this._handleAllRoomsToggled}
           @error=${this._handleError}
         ></vacuum-control-panel>
-        
-        <div class="header">
-          <span>${this._config?.title || this._t("schedule_title")}</span>
-          <span>${this._schedules.length} ${this._t("schedules_count")}</span>
-        </div>
           
         ${this._error && !this._showAddDialog ? html`<div class="error">${this._error}</div>` : ""}
           
@@ -396,9 +396,11 @@ class VacuumScheduleCard extends LitElement {
         position: relative;
       }
       .header {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 500;
         margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--divider-color, var(--ha-card-border-color));
         color: var(--primary-text-color);
         display: flex;
         justify-content: space-between;
