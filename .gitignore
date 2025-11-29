@@ -4,9 +4,7 @@ node_modules/
 *.js.map
 .env
 example*
-# Keep dist folder for releases
-!dist/
-!dist/vacuum-schedule-card.js
+dist/
 # Dev files
 dev.html
 rollup.config.dev.mjs
