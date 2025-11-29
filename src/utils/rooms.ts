@@ -3,12 +3,43 @@ import type { Room } from "../types";
 import { getAllEntitiesFromAPI } from "./api";
 
 /**
+ * Получает иконку из entity Home Assistant
+ */
+async function getEntityIcon(hass: HomeAssistant, entityId: string): Promise<string | undefined> {
+  try {
+    // Сначала проверяем в hass.states
+    const state = hass.states[entityId];
+    if (state?.attributes?.icon) {
+      return state.attributes.icon;
+    }
+
+    // Пытаемся получить из entity registry
+    try {
+      const entityRegistry = await hass.callWS<{ icon?: string }>({
+        type: "config/entity_registry/get",
+        entity_id: entityId,
+      });
+      if (entityRegistry?.icon) {
+        return entityRegistry.icon;
+      }
+    } catch (e) {
+      // Игнорируем ошибки получения из registry
+    }
+
+    return undefined;
+  } catch (error) {
+    return undefined;
+  }
+}
+
+/**
  * Загружает комнаты из различных источников
  */
 export async function loadRooms(
   hass: HomeAssistant,
   entity: string,
-  getTranslation: (key: string) => string
+  getTranslation: (key: string) => string,
+  roomIcons?: Record<number, string | { entity_id: string }>
 ): Promise<Room[]> {
   try {
     // Получаем все сущности через API как дополнительный источник
@@ -55,10 +86,47 @@ export async function loadRooms(
           }
 
           if (!isNaN(roomId)) {
-            roomEntities.push({
+            const room: Room = {
               id: roomId,
               name: nameState.state,
-            });
+            };
+
+            // Проверяем, есть ли переопределение иконки в конфигурации
+            if (roomIcons && roomIcons[roomId]) {
+              const iconConfig = roomIcons[roomId];
+              if (typeof iconConfig === "string") {
+                // Прямая иконка (emoji или mdi:icon)
+                room.icon = iconConfig;
+              } else if (iconConfig.entity_id) {
+                // Иконка из entity
+                room.entity_id = iconConfig.entity_id;
+                const icon = await getEntityIcon(hass, iconConfig.entity_id);
+                if (icon) {
+                  room.icon = icon;
+                }
+              }
+            } else {
+              // Пытаемся найти entity для комнаты и получить иконку
+              // Ищем entity по паттерну: {domain}.{room_name} или zone.{room_name}
+              const roomNameLower = nameState.state.toLowerCase().replace(/\s+/g, "_");
+              const possibleEntities = [
+                `zone.${roomNameLower}`,
+                `sensor.${roomNameLower}`,
+                `input_select.${roomNameLower}`,
+                `input_text.${roomNameLower}`,
+              ];
+
+              for (const possibleEntity of possibleEntities) {
+                const icon = await getEntityIcon(hass, possibleEntity);
+                if (icon) {
+                  room.icon = icon;
+                  room.entity_id = possibleEntity;
+                  break;
+                }
+              }
+            }
+
+            roomEntities.push(room);
           }
         }
       }
@@ -80,13 +148,36 @@ export async function loadRooms(
       const segments = state.attributes.segments || state.attributes.room_list || [];
 
       if (Array.isArray(segments) && segments.length > 0) {
-        return segments.map((room: any) => ({
-          id: typeof room === "number" ? room : room.id || room.segment_id,
-          name:
+        const rooms: Room[] = [];
+        for (const room of segments) {
+          const roomId = typeof room === "number" ? room : room.id || room.segment_id;
+          const roomName =
             typeof room === "object" && room.name
               ? room.name
-              : `Комната ${typeof room === "number" ? room : room.id || room.segment_id}`,
-        }));
+              : `Комната ${roomId}`;
+
+          const roomData: Room = {
+            id: roomId,
+            name: roomName,
+          };
+
+          // Проверяем, есть ли переопределение иконки в конфигурации
+          if (roomIcons && roomIcons[roomId]) {
+            const iconConfig = roomIcons[roomId];
+            if (typeof iconConfig === "string") {
+              roomData.icon = iconConfig;
+            } else if (iconConfig.entity_id) {
+              roomData.entity_id = iconConfig.entity_id;
+              const icon = await getEntityIcon(hass, iconConfig.entity_id);
+              if (icon) {
+                roomData.icon = icon;
+              }
+            }
+          }
+
+          rooms.push(roomData);
+        }
+        return rooms;
       }
     }
 

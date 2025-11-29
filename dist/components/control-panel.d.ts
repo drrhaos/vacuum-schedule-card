@@ -8,7 +8,9 @@ export declare class ControlPanel extends LitElement {
     selectedRooms: number[];
     hiddenRooms: number[];
     showRoomIds: boolean;
-    roomIcons: Record<number, string>;
+    roomIcons: Record<number, string | {
+        entity_id: string;
+    }>;
     private _vacuumService?;
     connectedCallback(): void;
     updated(changedProperties: Map<string | number | symbol, unknown>): void;
@@ -16,7 +18,7 @@ export declare class ControlPanel extends LitElement {
     private _getVacuumState;
     private _isButtonDisabled;
     private _getStateLabel;
-    private _getRoomIcon;
+    private _renderRoomIcon;
     private _handleStart;
     private _handleStop;
     private _handlePause;

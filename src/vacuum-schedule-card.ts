@@ -102,7 +102,12 @@ class VacuumScheduleCard extends LitElement {
 
   private async _loadRooms(): Promise<void> {
     if (!this.hass || !this.entity) return;
-    this._rooms = await loadRooms(this.hass, this.entity, (key) => this._t(key));
+    this._rooms = await loadRooms(
+      this.hass,
+      this.entity,
+      (key) => this._t(key),
+      this._config?.room_icons
+    );
     this.requestUpdate();
   }
 

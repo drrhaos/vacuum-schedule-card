@@ -4,7 +4,9 @@ export interface VacuumScheduleCardConfig {
     title?: string;
     hidden_rooms?: number[];
     show_room_ids?: boolean;
-    room_icons?: Record<number, string>;
+    room_icons?: Record<number, string | {
+        entity_id: string;
+    }>;
 }
 export interface Schedule {
     id: string;
@@ -17,6 +19,8 @@ export interface Schedule {
 export interface Room {
     id: number;
     name: string;
+    icon?: string;
+    entity_id?: string;
 }
 export interface Translations {
     [key: string]: {

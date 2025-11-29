@@ -3,4 +3,6 @@ import type { Room } from "../types";
 /**
  * Загружает комнаты из различных источников
  */
-export declare function loadRooms(hass: HomeAssistant, entity: string, getTranslation: (key: string) => string): Promise<Room[]>;
+export declare function loadRooms(hass: HomeAssistant, entity: string, getTranslation: (key: string) => string, roomIcons?: Record<number, string | {
+    entity_id: string;
+}>): Promise<Room[]>;

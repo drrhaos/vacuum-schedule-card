@@ -15,7 +15,7 @@ export class ControlPanel extends LitElement {
   @property({ attribute: false }) public selectedRooms: number[] = [];
   @property({ attribute: false }) public hiddenRooms: number[] = [];
   @property() public showRoomIds = false;
-  @property({ attribute: false }) public roomIcons: Record<number, string> = {};
+  @property({ attribute: false }) public roomIcons: Record<number, string | { entity_id: string }> = {};
 
   @state() private _vacuumService?: VacuumService;
 
@@ -54,11 +54,39 @@ export class ControlPanel extends LitElement {
     return this._vacuumService.getStateLabel(state);
   }
 
-  private _getRoomIcon(roomId: number): string {
-    if (roomId === 0) {
-      return "🏠";
+  private _renderRoomIcon(room: Room) {
+    if (room.id === 0) {
+      return html`🏠`;
     }
-    return this.roomIcons[roomId] || "🏠";
+
+    // 1. Проверяем переопределение в конфигурации
+    const configIcon = this.roomIcons[room.id];
+    let iconToUse: string | undefined;
+    
+    if (configIcon) {
+      if (typeof configIcon === "string") {
+        iconToUse = configIcon;
+      }
+      // Если это объект с entity_id, иконка уже должна быть загружена в room.icon
+    }
+
+    // 2. Используем иконку из комнаты (загруженную из entity)
+    if (!iconToUse && room.icon) {
+      iconToUse = room.icon;
+    }
+
+    // 3. Дефолтная иконка
+    if (!iconToUse) {
+      return html`🏠`;
+    }
+
+    // Если иконка начинается с "mdi:" или "hass:", используем ha-icon
+    if (iconToUse.startsWith("mdi:") || iconToUse.startsWith("hass:") || iconToUse.includes(":")) {
+      return html`<ha-icon .icon=${iconToUse}></ha-icon>`;
+    }
+
+    // Иначе используем как есть (emoji или текст)
+    return html`${iconToUse}`;
   }
 
   private async _handleStart(): Promise<void> {
@@ -180,7 +208,7 @@ export class ControlPanel extends LitElement {
               title="${this._t("all_rooms")}"
             >
               <span class="button-content">
-                <span class="button-icon">${this._getRoomIcon(0)}</span>
+                <span class="button-icon">${this._renderRoomIcon({ id: 0, name: this._t("all_rooms") })}</span>
                 <span class="button-label">${this._t("all_rooms")}</span>
               </span>
             </ha-button>
@@ -191,7 +219,7 @@ export class ControlPanel extends LitElement {
                 title="${room.name}${this.showRoomIds ? ` (ID: ${room.id})` : ""}"
               >
                 <span class="button-content">
-                  <span class="button-icon">${this._getRoomIcon(room.id)}</span>
+                  <span class="button-icon">${this._renderRoomIcon(room)}</span>
                   <span class="button-label">${room.name}</span>
                   ${this.showRoomIds ? html`<span class="button-id">${room.id}</span>` : ""}
                 </span>
