@@ -6,6 +6,7 @@ import { ScheduleService } from "./services/schedule.service";
 import { loadRooms } from "./utils/rooms";
 import { translate } from "./utils/i18n";
 import { subscribeToStateChangesByPattern } from "./utils/event-subscription";
+import { DEFAULT_TITLE, DEFAULT_CARD_SIZE, GRID_OPTIONS, CARD_NAME, CARD_TITLE, CARD_DESCRIPTION, AUTOMATION_PREFIX } from "./constants";
 import "./components/control-panel";
 import "./components/schedule-list";
 import "./components/schedule-dialog";
@@ -64,7 +65,7 @@ class VacuumScheduleCard extends LitElement {
 
     const subscription = subscribeToStateChangesByPattern(
       this.hass,
-      "automation.vacuum_schedule_",
+      `automation.${AUTOMATION_PREFIX}`,
       () => {
         this._loadSchedules();
       }
@@ -243,7 +244,7 @@ class VacuumScheduleCard extends LitElement {
     return html`
       <ha-card>
         <div class="header">
-          <span>${this._config?.title || "Пылесос"}</span>
+          <span>${this._config?.title || DEFAULT_TITLE}</span>
           <span>${this._schedules.length} ${this._t("schedules_count")}</span>
         </div>
         
@@ -294,18 +295,11 @@ class VacuumScheduleCard extends LitElement {
   }
 
   public getCardSize(): number {
-    return 3;
+    return DEFAULT_CARD_SIZE;
   }
 
   public getGridOptions() {
-    return {
-      rows: 3,
-      columns: 6,
-      min_rows: 2,
-      max_rows: 6,
-      min_columns: 3,
-      max_columns: 12,
-    };
+    return GRID_OPTIONS;
   }
 
   static getStubConfig(): VacuumScheduleCardConfig {
@@ -433,16 +427,16 @@ declare global {
   }
 }
 
-if (!customElements.get("vacuum-schedule-card")) {
-  customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+if (!customElements.get(CARD_NAME)) {
+  customElements.define(CARD_NAME, VacuumScheduleCard);
 }
 
 window.customCards = window.customCards || [];
 window.customCards.push({
   preview: true,
-  type: "vacuum-schedule-card",
-  name: "Vacuum Schedule Card",
-  description: "Карточка для создания расписания уборки пылесоса",
+  type: CARD_NAME,
+  name: CARD_TITLE,
+  description: CARD_DESCRIPTION,
 });
 
 export { VacuumScheduleCard };

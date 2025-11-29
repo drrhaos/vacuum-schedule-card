@@ -7,6 +7,7 @@ import { VacuumService } from "../services/vacuum.service";
 import { translate } from "../utils/i18n";
 import { getVacuumRobotSVG } from "../utils/svg-loader";
 import { subscribeToStateChanges } from "../utils/event-subscription";
+import { ACTIVE_BUTTON_TASK_STATUSES } from "../constants";
 
 @customElement("vacuum-control-panel")
 export class ControlPanel extends LitElement {
@@ -121,14 +122,7 @@ export class ControlPanel extends LitElement {
       // Список статусов, при которых кнопки активны (можно выбирать комнаты)
       // Основано на переводах из dreame-vacuum интеграции
       // https://github.com/Tasshack/dreame-vacuum/blob/master/custom_components/dreame_vacuum/translations/
-      const activeButtonStatuses = [
-        // Английские статусы
-        "unknown", "completed",
-        // Русские статусы (переведенные Home Assistant)
-        "неизвестно", "завершено",
-        // Пустые значения
-        "", "null", "undefined", "none"
-      ];
+      const activeButtonStatuses: string[] = [...ACTIVE_BUTTON_TASK_STATUSES];
       
       // Если статус НЕ в списке активных, значит идет активная задача - блокируем
       // Активные задачи (блокируем кнопки): cleaning, zone_cleaning, room_cleaning, spot_cleaning,
@@ -138,22 +132,16 @@ export class ControlPanel extends LitElement {
       // cruising_path, cruising_path_paused, cruising_point, cruising_point_paused,
       // summon_clean_paused, returning_to_install_mop, returning_to_remove_mop и т.д.
       if (!activeButtonStatuses.includes(taskStatusLower)) {
-        console.log(`[Vacuum Schedule Card] Блокировка кнопок: task_status="${taskStatus}" (${taskStatusLower})`);
         return true;
       } else {
         // Если статус в списке активных (unknown, completed), кнопки активны - не блокируем
-        console.log(`[Vacuum Schedule Card] Кнопки активны: task_status="${taskStatus}" (${taskStatusLower})`);
         return false;
       }
     }
     
     // Fallback: если task_status не определен, проверяем основной статус пылесоса и список убираемых комнат
     const state = this._getVacuumState();
-    const isCleaningByState = state === "cleaning" || this._currentCleaningRooms.length > 0;
-    if (isCleaningByState) {
-      console.log(`[Vacuum Schedule Card] Блокировка кнопок (fallback): state="${state}", rooms=${this._currentCleaningRooms.length}`);
-    }
-    return isCleaningByState;
+    return state === "cleaning" || this._currentCleaningRooms.length > 0;
   }
 
   private _isButtonDisabled(buttonType: "start" | "stop" | "pause" | "return"): boolean {

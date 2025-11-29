@@ -201,6 +201,49 @@ async function deleteAutomationREST(hass, automationId) {
 }
 
 /**
+ * Константы для Vacuum Schedule Card
+ */
+const CARD_NAME = "vacuum-schedule-card";
+const CARD_TITLE = "Vacuum Schedule Card";
+const CARD_DESCRIPTION = "Карточка для создания расписания уборки пылесоса";
+/**
+ * Префиксы для автоматизаций расписания
+ */
+const AUTOMATION_PREFIX = "vacuum_schedule_";
+/**
+ * Статусы задачи, при которых кнопки выбора комнат активны
+ */
+const ACTIVE_BUTTON_TASK_STATUSES = [
+    // Английские статусы
+    "unknown",
+    "completed",
+    // Русские статусы (переведенные Home Assistant)
+    "неизвестно",
+    "завершено",
+    // Пустые значения
+    "",
+    "null",
+    "undefined",
+    "none",
+];
+/**
+ * Дефолтные значения
+ */
+const DEFAULT_TITLE = "Пылесос";
+const DEFAULT_CARD_SIZE = 3;
+/**
+ * Grid options для карточки
+ */
+const GRID_OPTIONS = {
+    rows: 3,
+    columns: 6,
+    min_rows: 2,
+    max_rows: 6,
+    min_columns: 3,
+    max_columns: 12,
+};
+
+/**
  * Перезагружает автоматизации в Home Assistant
  */
 async function reloadAutomations(hass) {
@@ -226,7 +269,7 @@ function filterScheduleAutomations(hass) {
             continue;
         }
         const automationId = state.attributes.id || "";
-        if (!automationId.includes("vacuum_schedule")) {
+        if (!automationId.includes(AUTOMATION_PREFIX)) {
             continue;
         }
         filteredAutomations.push({
@@ -487,7 +530,7 @@ async function deleteAutomation(hass, automationId) {
     }
 }
 function createAutomationFromSchedule(schedule, day, entity, dayNames, scheduleTitle) {
-    const automationId = `vacuum_schedule_${schedule.id}_day_${day}`;
+    const automationId = `${AUTOMATION_PREFIX}${schedule.id}_day_${day}`;
     const dayName = getWeekdayName(day);
     const [hours, minutes] = schedule.time.split(":").map(Number);
     return {
@@ -728,7 +771,7 @@ class ScheduleService {
         for (const automationConfig of scheduleAutomations) {
             try {
                 const configId = automationConfig.id || "";
-                if (!configId || !configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
+                if (!configId || !configId.startsWith(AUTOMATION_PREFIX) || !configId.includes("_day_")) {
                     continue;
                 }
                 let automationState = null;
@@ -835,7 +878,7 @@ class ScheduleService {
         }
     }
     async deleteAutomationForDay(scheduleId, day) {
-        const automationId = `vacuum_schedule_${scheduleId}_day_${day}`;
+        const automationId = `${AUTOMATION_PREFIX}${scheduleId}_day_${day}`;
         const success = await deleteAutomation(this.hass, automationId);
         if (!success) {
             console.error(`[Vacuum Schedule Card] Не удалось удалить автоматизацию ${automationId}`);
@@ -1279,12 +1322,8 @@ class VacuumService {
         const sensorState = this.hass.states[sensorEntityId];
         if (sensorState && sensorState.state !== null && sensorState.state !== undefined) {
             const stateValue = String(sensorState.state).trim();
-            console.log(`[Vacuum Schedule Card] task_status: "${stateValue}" (entity: ${sensorEntityId})`);
             // Возвращаем значение состояния, включая "unknown" и "none" для обработки в _isCleaning()
             return stateValue || undefined;
-        }
-        else {
-            console.log(`[Vacuum Schedule Card] task_status: не найден (entity: ${sensorEntityId}, exists: ${!!sensorState})`);
         }
         return undefined;
     }
@@ -1472,14 +1511,7 @@ let ControlPanel = class ControlPanel extends s {
             // Список статусов, при которых кнопки активны (можно выбирать комнаты)
             // Основано на переводах из dreame-vacuum интеграции
             // https://github.com/Tasshack/dreame-vacuum/blob/master/custom_components/dreame_vacuum/translations/
-            const activeButtonStatuses = [
-                // Английские статусы
-                "unknown", "completed",
-                // Русские статусы (переведенные Home Assistant)
-                "неизвестно", "завершено",
-                // Пустые значения
-                "", "null", "undefined", "none"
-            ];
+            const activeButtonStatuses = [...ACTIVE_BUTTON_TASK_STATUSES];
             // Если статус НЕ в списке активных, значит идет активная задача - блокируем
             // Активные задачи (блокируем кнопки): cleaning, zone_cleaning, room_cleaning, spot_cleaning,
             // fast_mapping, cleaning_paused, room_cleaning_paused, zone_cleaning_paused,
@@ -1488,22 +1520,16 @@ let ControlPanel = class ControlPanel extends s {
             // cruising_path, cruising_path_paused, cruising_point, cruising_point_paused,
             // summon_clean_paused, returning_to_install_mop, returning_to_remove_mop и т.д.
             if (!activeButtonStatuses.includes(taskStatusLower)) {
-                console.log(`[Vacuum Schedule Card] Блокировка кнопок: task_status="${taskStatus}" (${taskStatusLower})`);
                 return true;
             }
             else {
                 // Если статус в списке активных (unknown, completed), кнопки активны - не блокируем
-                console.log(`[Vacuum Schedule Card] Кнопки активны: task_status="${taskStatus}" (${taskStatusLower})`);
                 return false;
             }
         }
         // Fallback: если task_status не определен, проверяем основной статус пылесоса и список убираемых комнат
         const state = this._getVacuumState();
-        const isCleaningByState = state === "cleaning" || this._currentCleaningRooms.length > 0;
-        if (isCleaningByState) {
-            console.log(`[Vacuum Schedule Card] Блокировка кнопок (fallback): state="${state}", rooms=${this._currentCleaningRooms.length}`);
-        }
-        return isCleaningByState;
+        return state === "cleaning" || this._currentCleaningRooms.length > 0;
     }
     _isButtonDisabled(buttonType) {
         if (!this._vacuumService)
@@ -2741,7 +2767,7 @@ let VacuumScheduleCard = class VacuumScheduleCard extends s {
             this._unsubscribeAutomations();
             this._unsubscribeAutomations = undefined;
         }
-        const subscription = subscribeToStateChangesByPattern(this.hass, "automation.vacuum_schedule_", () => {
+        const subscription = subscribeToStateChangesByPattern(this.hass, `automation.${AUTOMATION_PREFIX}`, () => {
             this._loadSchedules();
         });
         if (subscription) {
@@ -2896,7 +2922,7 @@ let VacuumScheduleCard = class VacuumScheduleCard extends s {
         return x `
       <ha-card>
         <div class="header">
-          <span>${this._config?.title || "Пылесос"}</span>
+          <span>${this._config?.title || DEFAULT_TITLE}</span>
           <span>${this._schedules.length} ${this._t("schedules_count")}</span>
         </div>
         
@@ -2946,17 +2972,10 @@ let VacuumScheduleCard = class VacuumScheduleCard extends s {
     `;
     }
     getCardSize() {
-        return 3;
+        return DEFAULT_CARD_SIZE;
     }
     getGridOptions() {
-        return {
-            rows: 3,
-            columns: 6,
-            min_rows: 2,
-            max_rows: 6,
-            min_columns: 3,
-            max_columns: 12,
-        };
+        return GRID_OPTIONS;
     }
     static getStubConfig() {
         return {
@@ -3096,15 +3115,15 @@ __decorate([
 VacuumScheduleCard = __decorate([
     e$3("vacuum-schedule-card")
 ], VacuumScheduleCard);
-if (!customElements.get("vacuum-schedule-card")) {
-    customElements.define("vacuum-schedule-card", VacuumScheduleCard);
+if (!customElements.get(CARD_NAME)) {
+    customElements.define(CARD_NAME, VacuumScheduleCard);
 }
 window.customCards = window.customCards || [];
 window.customCards.push({
     preview: true,
-    type: "vacuum-schedule-card",
-    name: "Vacuum Schedule Card",
-    description: "Карточка для создания расписания уборки пылесоса",
+    type: CARD_NAME,
+    name: CARD_TITLE,
+    description: CARD_DESCRIPTION,
 });
 
 export { VacuumScheduleCard };

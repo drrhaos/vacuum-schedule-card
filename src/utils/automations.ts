@@ -11,6 +11,7 @@ import {
   createOrUpdateAutomationREST,
   deleteAutomationREST,
 } from "./api";
+import { AUTOMATION_PREFIX } from "../constants";
 
 /**
  * Перезагружает автоматизации в Home Assistant
@@ -41,7 +42,7 @@ function filterScheduleAutomations(hass: HomeAssistant): AutomationConfig[] {
     }
     
     const automationId = state.attributes.id || "";
-    if (!automationId.includes("vacuum_schedule")) {
+    if (!automationId.includes(AUTOMATION_PREFIX)) {
       continue;
     }
     
@@ -356,7 +357,7 @@ export function createAutomationFromSchedule(
   dayNames: string[],
   scheduleTitle: string
 ): AutomationConfig {
-  const automationId = `vacuum_schedule_${schedule.id}_day_${day}`;
+  const automationId = `${AUTOMATION_PREFIX}${schedule.id}_day_${day}`;
   const dayName = getWeekdayName(day);
   const [hours, minutes] = schedule.time.split(":").map(Number);
 

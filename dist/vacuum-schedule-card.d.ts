@@ -37,12 +37,12 @@ declare class VacuumScheduleCard extends LitElement {
     render(): import("lit-html").TemplateResult<1>;
     getCardSize(): number;
     getGridOptions(): {
-        rows: number;
-        columns: number;
-        min_rows: number;
-        max_rows: number;
-        min_columns: number;
-        max_columns: number;
+        readonly rows: 3;
+        readonly columns: 6;
+        readonly min_rows: 2;
+        readonly max_rows: 6;
+        readonly min_columns: 3;
+        readonly max_columns: 12;
     };
     static getStubConfig(): VacuumScheduleCardConfig;
     static getConfigForm(): {

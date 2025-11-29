@@ -9,6 +9,7 @@ import {
   reloadAutomations,
 } from "../utils/automations";
 import { getDayNames } from "../utils/i18n";
+import { AUTOMATION_PREFIX } from "../constants";
 
 export class ScheduleService {
   constructor(
@@ -25,7 +26,7 @@ export class ScheduleService {
       try {
         const configId = automationConfig.id || "";
         
-        if (!configId || !configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
+        if (!configId || !configId.startsWith(AUTOMATION_PREFIX) || !configId.includes("_day_")) {
           continue;
         }
 
@@ -153,7 +154,7 @@ export class ScheduleService {
   }
 
   private async deleteAutomationForDay(scheduleId: string, day: number): Promise<void> {
-    const automationId = `vacuum_schedule_${scheduleId}_day_${day}`;
+    const automationId = `${AUTOMATION_PREFIX}${scheduleId}_day_${day}`;
     const success = await deleteAutomation(this.hass, automationId);
     if (!success) {
       console.error(`[Vacuum Schedule Card] Не удалось удалить автоматизацию ${automationId}`);
