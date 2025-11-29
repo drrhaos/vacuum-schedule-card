@@ -50,11 +50,17 @@ export class VacuumService implements VacuumControl {
   }
 
   /**
-   * Получает статус pylesos_state из сущности sensor.pylesos_state
+   * Получает статус {entity_name}_state из сущности sensor.{entity_name}_state
+   * Например, для vacuum.pylesos ищет sensor.pylesos_state
+   * Для vacuum.xiaomi_m30s ищет sensor.xiaomi_m30s_state
    */
   getPylesosState(): string | undefined {
-    // Сначала проверяем отдельную сущность sensor.pylesos_state
-    const sensorState = this.hass.states["sensor.pylesos_state"];
+    // Извлекаем имя сущности из entity (убираем префикс "vacuum.")
+    const entityName = this.entity.replace(/^vacuum\./, "");
+    const sensorEntityId = `sensor.${entityName}_state`;
+    
+    // Проверяем отдельную сущность sensor.{entity_name}_state
+    const sensorState = this.hass.states[sensorEntityId];
     if (sensorState && sensorState.state) {
       const stateValue = String(sensorState.state).trim();
       const normalized = stateValue.toLowerCase().replace(/\s+/g, "");
@@ -73,7 +79,7 @@ export class VacuumService implements VacuumControl {
     const attrs = state.attributes;
     
     // Проверяем различные возможные варианты названия атрибута
-    const pylesosState = attrs.pylesos_state || attrs.pylesosState || attrs["pylesos_state"];
+    const pylesosState = attrs[`${entityName}_state`] || attrs.pylesos_state || attrs.pylesosState;
     
     if (typeof pylesosState === "string" && pylesosState.trim()) {
       const normalized = pylesosState.trim().toLowerCase().replace(/\s+/g, "");

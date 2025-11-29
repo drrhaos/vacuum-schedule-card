@@ -48,7 +48,7 @@ export async function loadRooms(
     // Извлекаем базовое имя entity (например, из vacuum.xiaomi_m30s получаем xiaomi_m30s)
     const entityName = entity.replace("vacuum.", "");
 
-    // Ищем select-сущности для комнат (например, select.pylesos_room_1_name)
+    // Ищем select-сущности для комнат (например, select.{entity_name}_room_1_name)
     // Паттерн: select.{entity_prefix}_room_{id}_name
     const roomEntities: Room[] = [];
 
@@ -56,7 +56,6 @@ export async function loadRooms(
     const possiblePrefixes = [
       entityName,
       entityName.replace(/_/g, ""),
-      "pylesos", // как в примере
       "vacuum",
     ];
 

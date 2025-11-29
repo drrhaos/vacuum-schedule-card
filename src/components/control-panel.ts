@@ -107,6 +107,11 @@ export class ControlPanel extends LitElement {
     return this._vacuumService.getPylesosState();
   }
 
+  private _getStateEntityName(): string {
+    // Извлекаем имя сущности из entity (убираем префикс "vacuum.")
+    return this.entity.replace(/^vacuum\./, "");
+  }
+
   private _getError(): string | undefined {
     if (!this._vacuumService) return undefined;
     return this._vacuumService.getError();
@@ -242,7 +247,7 @@ export class ControlPanel extends LitElement {
           <div class="status-info">
             <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
             ${this._getPylesosState() ? html`
-              <span class="status-pylesos">pylesos_state: <strong>${this._getPylesosState()}</strong></span>
+              <span class="status-pylesos">${this._getStateEntityName()}_state: <strong>${this._getPylesosState()}</strong></span>
             ` : ""}
             ${this._getError() ? html`
               <span class="status-error">${this._getError()}</span>
