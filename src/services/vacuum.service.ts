@@ -190,9 +190,12 @@ export class VacuumService implements VacuumControl {
     const sensorState = this.hass.states[sensorEntityId];
     if (sensorState && sensorState.state) {
       const stateValue = String(sensorState.state).trim();
+      console.log(`[Vacuum Schedule Card] task_status: ${stateValue} (entity: ${sensorEntityId})`);
       if (stateValue && stateValue.toLowerCase() !== "unknown" && stateValue.toLowerCase() !== "none") {
         return stateValue;
       }
+    } else {
+      console.log(`[Vacuum Schedule Card] task_status: не найден (entity: ${sensorEntityId})`);
     }
     
     return undefined;
