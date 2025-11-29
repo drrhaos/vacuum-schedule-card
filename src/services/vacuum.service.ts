@@ -178,6 +178,27 @@ export class VacuumService implements VacuumControl {
   }
 
   /**
+   * Получает статус задачи из сущности sensor.{entity_name}_task_status
+   * Например, для vacuum.pylesos ищет sensor.pylesos_task_status
+   */
+  getTaskStatus(): string | undefined {
+    // Извлекаем имя сущности из entity (убираем префикс "vacuum.")
+    const entityName = this.entity.replace(/^vacuum\./, "");
+    const sensorEntityId = `sensor.${entityName}_task_status`;
+    
+    // Проверяем отдельную сущность sensor.{entity_name}_task_status
+    const sensorState = this.hass.states[sensorEntityId];
+    if (sensorState && sensorState.state) {
+      const stateValue = String(sensorState.state).trim();
+      if (stateValue && stateValue.toLowerCase() !== "unknown" && stateValue.toLowerCase() !== "none") {
+        return stateValue;
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
    * Получает список ID комнат, которые сейчас убираются
    * Проверяет различные возможные атрибуты пылесоса
    */

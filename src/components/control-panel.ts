@@ -57,16 +57,38 @@ export class ControlPanel extends LitElement {
   private _subscribeToStateChanges(): void {
     this._unsubscribeFromStateChanges();
 
+    // Подписываемся на изменения основного entity пылесоса
     const subscription = subscribeToStateChanges(
       this.hass,
       this.entity,
       () => {
         this._updateCleaningRooms();
+        this.requestUpdate();
       }
     );
 
     if (subscription) {
       this._unsubscribeStateChanges = subscription.unsubscribe;
+    }
+
+    // Также подписываемся на изменения sensor.{entity_name}_task_status
+    const entityName = this.entity.replace(/^vacuum\./, "");
+    const taskStatusEntityId = `sensor.${entityName}_task_status`;
+    const taskStatusSubscription = subscribeToStateChanges(
+      this.hass,
+      taskStatusEntityId,
+      () => {
+        this.requestUpdate();
+      }
+    );
+
+    // Сохраняем обе подписки
+    if (taskStatusSubscription) {
+      const originalUnsubscribe = this._unsubscribeStateChanges;
+      this._unsubscribeStateChanges = () => {
+        if (originalUnsubscribe) originalUnsubscribe();
+        taskStatusSubscription.unsubscribe();
+      };
     }
   }
 
@@ -86,6 +108,34 @@ export class ControlPanel extends LitElement {
   }
 
   private _isCleaning(): boolean {
+    if (!this._vacuumService) return false;
+    
+    // Проверяем статус задачи из sensor.{entity_name}_task_status
+    // Блокируем кнопки выбора комнат, если идет активная задача
+    const taskStatus = this._vacuumService.getTaskStatus();
+    if (taskStatus) {
+      const taskStatusLower = taskStatus.toLowerCase().trim();
+      
+      // Список неактивных статусов (когда можно выбирать комнаты)
+      // Основано на переводах из dreame-vacuum интеграции
+      // https://github.com/Tasshack/dreame-vacuum/blob/master/custom_components/dreame_vacuum/translations/
+      const inactiveStatuses = [
+        // Английские статусы
+        "idle", "docked", "standby", "none", "unknown", "off", "stopped", "completed",
+        // Русские статусы (переведенные Home Assistant)
+        "ожидание", "на базе", "неизвестно", "выключено", "остановлено", "нет", "завершено",
+        // Пустые значения
+        "", "null", "undefined"
+      ];
+      
+      // Если статус не в списке неактивных, значит идет активная задача - блокируем
+      // Активные статусы могут быть: cleaning, paused, returning, charging, drying, rinsing и т.д.
+      if (!inactiveStatuses.includes(taskStatusLower)) {
+        return true;
+      }
+    }
+    
+    // Fallback: проверяем основной статус пылесоса и список убираемых комнат
     const state = this._getVacuumState();
     return state === "cleaning" || this._currentCleaningRooms.length > 0;
   }
