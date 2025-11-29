@@ -387,10 +387,6 @@ class VacuumScheduleCard extends LitElement {
         flex: 1;
         min-width: 100px;
       }
-      .control-button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
       .rooms-row {
         margin-top: 12px;
         padding-top: 12px;
@@ -401,13 +397,17 @@ class VacuumScheduleCard extends LitElement {
         min-width: 80px;
         max-width: 100%;
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
+        --mdc-button-container-shape: var(--ha-card-border-radius, 4px);
+        --mdc-button-outline-width: 1px;
+        --mdc-button-outline-color: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
+        --mdc-ripple-color: transparent;
         position: relative;
         transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12)));
-        border-radius: var(--ha-card-border-radius, 4px);
-        background: var(--card-background-color, var(--ha-card-background, #fff));
-        box-shadow: none;
-        padding: 12px 8px;
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12))) !important;
+        border-radius: var(--ha-card-border-radius, 4px) !important;
+        background: var(--card-background-color, var(--ha-card-background, #fff)) !important;
+        box-shadow: none !important;
+        padding: 12px 8px !important;
         margin: 2px;
         cursor: pointer;
         overflow: hidden;
@@ -416,6 +416,13 @@ class VacuumScheduleCard extends LitElement {
         align-items: center;
         justify-content: center;
         min-height: 60px;
+      }
+      .room-button::part(button),
+      .room-button::part(native-button) {
+        background: var(--card-background-color, var(--ha-card-background, #fff)) !important;
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.12))) !important;
+        box-shadow: none !important;
+        border-radius: var(--ha-card-border-radius, 4px) !important;
       }
       .room-button .button-content {
         display: flex;
@@ -474,9 +481,16 @@ class VacuumScheduleCard extends LitElement {
       }
       .room-button.pressed {
         --mdc-theme-primary: var(--primary-color, var(--mdc-theme-primary));
-        background: var(--primary-color, var(--mdc-theme-primary));
-        border-color: var(--primary-color, var(--mdc-theme-primary));
-        box-shadow: none;
+        --mdc-button-outline-color: var(--primary-color, var(--mdc-theme-primary));
+        background: var(--primary-color, var(--mdc-theme-primary)) !important;
+        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        box-shadow: none !important;
+      }
+      .room-button.pressed::part(button),
+      .room-button.pressed::part(native-button) {
+        background: var(--primary-color, var(--mdc-theme-primary)) !important;
+        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        box-shadow: none !important;
       }
       .room-button.pressed .button-icon {
         color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
@@ -490,11 +504,20 @@ class VacuumScheduleCard extends LitElement {
         color: var(--text-primary-color, var(--mdc-theme-on-primary, #fff));
       }
       .room-button:active:not(.pressed) {
-        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.1)));
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.1))) !important;
+      }
+      .room-button:active:not(.pressed)::part(button),
+      .room-button:active:not(.pressed)::part(native-button) {
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.1))) !important;
       }
       .room-button:hover:not(.pressed) {
-        border-color: var(--primary-color, var(--mdc-theme-primary));
-        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.05)));
+        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.05))) !important;
+      }
+      .room-button:hover:not(.pressed)::part(button),
+      .room-button:hover:not(.pressed)::part(native-button) {
+        border-color: var(--primary-color, var(--mdc-theme-primary)) !important;
+        background: var(--divider-color, var(--ha-card-border-color, rgba(0,0,0,0.05))) !important;
       }
       .dialog {
         position: fixed !important;
