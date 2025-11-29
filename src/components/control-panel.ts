@@ -241,7 +241,7 @@ export class ControlPanel extends LitElement {
     return html`
       <div class="control-panel">
         <div class="control-panel-status">
-          <span class="status-icon">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
+          <span class="status-icon ${vacuumState === "cleaning" ? "cleaning" : ""}">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
           <div class="status-info">
             <span class="status-text">Статус: <strong>${this._getStateLabel()}</strong></span>
             ${this._getError() ? html`
@@ -350,10 +350,28 @@ export class ControlPanel extends LitElement {
         width: 128px;
         height: 128px;
         flex-shrink: 0;
+        transition: transform 0.3s ease;
       }
       .status-icon svg {
         width: 100%;
         height: 100%;
+      }
+      .status-icon.cleaning {
+        animation: vacuum-cleaning 2s ease-in-out infinite;
+      }
+      @keyframes vacuum-cleaning {
+        0%, 100% {
+          transform: translateX(0) rotate(0deg);
+        }
+        25% {
+          transform: translateX(4px) rotate(-2deg);
+        }
+        50% {
+          transform: translateX(0) rotate(0deg);
+        }
+        75% {
+          transform: translateX(-4px) rotate(2deg);
+        }
       }
       .status-info {
         display: flex;
