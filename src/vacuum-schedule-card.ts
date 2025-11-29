@@ -811,6 +811,35 @@ class VacuumScheduleCard extends LitElement {
     }
   }
 
+  private async _updateAutomationsInBackground(schedule: Schedule, oldSchedule?: Schedule): Promise<void> {
+    try {
+      // Создаем/обновляем автоматизации
+      console.log("[Vacuum Schedule Card] Начало обновления автоматизаций для расписания");
+      await this._updateAutomationsForSchedule(schedule, oldSchedule);
+      console.log("[Vacuum Schedule Card] Автоматизации успешно обновлены");
+      
+      // Перезагружаем автоматизации для обновления кеша
+      try {
+        console.log("[Vacuum Schedule Card] Перезагрузка автоматизаций...");
+        await this.hass.callService("automation", "reload");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("[Vacuum Schedule Card] Автоматизации перезагружены");
+      } catch (reloadError) {
+        console.warn("[Vacuum Schedule Card] Не удалось перезагрузить автоматизации:", reloadError);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Перезагружаем расписания из автоматизаций для синхронизации
+      console.log("[Vacuum Schedule Card] Перезагрузка расписаний для синхронизации...");
+      await this._loadSchedules();
+      console.log("[Vacuum Schedule Card] Расписания перезагружены");
+      console.log("[Vacuum Schedule Card] Расписание успешно сохранено");
+    } catch (error) {
+      console.error("[Vacuum Schedule Card] Ошибка обновления автоматизаций:", error);
+      throw error;
+    }
+  }
+
   private async _updateAutomationsForSchedule(schedule: Schedule, oldSchedule?: Schedule): Promise<void> {
     console.log("[Vacuum Schedule Card] Обновление автоматизаций для расписания:", {
       scheduleId: schedule.id,
@@ -901,42 +930,20 @@ class VacuumScheduleCard extends LitElement {
       console.log(`[Vacuum Schedule Card] Расписание добавлено в список (всего: ${schedules.length})`);
     }
 
-    try {
-      // Обновляем локальное состояние
-      this._schedules = schedules;
-      this.requestUpdate();
-      
-      // Создаем/обновляем автоматизации
-      console.log("[Vacuum Schedule Card] Начало обновления автоматизаций для расписания");
-      await this._updateAutomationsForSchedule(schedule, oldSchedule);
-      console.log("[Vacuum Schedule Card] Автоматизации успешно обновлены");
-      
-      // Перезагружаем автоматизации для обновления кеша
-      try {
-        console.log("[Vacuum Schedule Card] Перезагрузка автоматизаций...");
-        await this.hass.callService("automation", "reload");
-        // Задержка для применения изменений в кеше
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log("[Vacuum Schedule Card] Автоматизации перезагружены");
-      } catch (reloadError) {
-        console.warn("[Vacuum Schedule Card] Не удалось перезагрузить автоматизации:", reloadError);
-        // Все равно ждем, чтобы дать время API обновиться
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      // Перезагружаем расписания из автоматизаций для синхронизации
-      console.log("[Vacuum Schedule Card] Перезагрузка расписаний для синхронизации...");
-      await this._loadSchedules();
-      console.log("[Vacuum Schedule Card] Расписания перезагружены");
-      
-      this._closeDialog();
-      this._error = undefined;
-      this.requestUpdate();
-      console.log("[Vacuum Schedule Card] Расписание успешно сохранено");
-    } catch (error) {
+    // Обновляем локальное состояние и закрываем диалог сразу
+    this._schedules = schedules;
+    this._closeDialog();
+    this._error = undefined;
+    this.requestUpdate();
+    
+    console.log("[Vacuum Schedule Card] Расписание добавлено в список, создание автоматизаций в фоне...");
+    
+    // Создаем/обновляем автоматизации в фоне (не блокируем UI)
+    this._updateAutomationsInBackground(schedule, oldSchedule).catch((error) => {
+      console.error("[Vacuum Schedule Card] Ошибка создания автоматизаций:", error);
       this._error = `${this._t("error_saving")} ${error}`;
-      console.error("[Vacuum Schedule Card] Ошибка сохранения расписания:", error);
-    }
+      this.requestUpdate();
+    });
   }
 }
 
