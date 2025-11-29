@@ -25,16 +25,26 @@ import {
  */
 function filterAutomationsFromStates(hass: HomeAssistant): any[] {
   const filteredAutomations: any[] = [];
+  let totalStates = 0;
+  let automationStates = 0;
+  let vacuumScheduleAutomations = 0;
+  
+  console.log(`[Vacuum Schedule Card] 🔍 Начинаем фильтрацию hass.states...`);
+  console.log(`[Vacuum Schedule Card] Всего состояний в hass.states: ${Object.keys(hass.states).length}`);
   
   // Проходим по всем состояниям в hass.states
   for (const entityId in hass.states) {
+    totalStates++;
+    
     // Критерий 1: entity_id должен начинаться с "automation."
     if (!entityId.startsWith("automation.")) {
       continue;
     }
     
+    automationStates++;
     const state = hass.states[entityId];
     if (!state || !state.attributes) {
+      console.log(`[Vacuum Schedule Card] ⚠️ Автоматизация ${entityId} не имеет состояния или атрибутов, пропускаем`);
       continue;
     }
     
@@ -43,6 +53,14 @@ function filterAutomationsFromStates(hass: HomeAssistant): any[] {
     if (!automationId.includes("vacuum_schedule")) {
       continue;
     }
+    
+    vacuumScheduleAutomations++;
+    console.log(`[Vacuum Schedule Card] ✅ Найдена автоматизация расписания:`, {
+      entity_id: entityId,
+      id: automationId,
+      alias: state.attributes.friendly_name || "нет",
+      state: state.state,
+    });
     
     // Создаем объект конфигурации из состояния
     filteredAutomations.push({
@@ -55,7 +73,23 @@ function filterAutomationsFromStates(hass: HomeAssistant): any[] {
     });
   }
   
-  console.log(`[Vacuum Schedule Card] Отфильтровано автоматизаций из hass.states: ${filteredAutomations.length}`);
+  console.log(`[Vacuum Schedule Card] ✅ Фильтрация завершена:`);
+  console.log(`  - Всего состояний проверено: ${totalStates}`);
+  console.log(`  - Найдено автоматизаций (entity_id.startsWith("automation.")): ${automationStates}`);
+  console.log(`  - Найдено автоматизаций расписаний (id.includes("vacuum_schedule")): ${vacuumScheduleAutomations}`);
+  console.log(`  - Отфильтровано автоматизаций из hass.states: ${filteredAutomations.length}`);
+  
+  if (filteredAutomations.length > 0) {
+    console.group(`[Vacuum Schedule Card] Список отфильтрованных автоматизаций:`);
+    filteredAutomations.forEach((automation, index) => {
+      console.log(`${index + 1}. ID: ${automation.id}`);
+      console.log(`   Entity ID: ${automation._entity_id}`);
+      console.log(`   Alias: ${automation.alias}`);
+      console.log(`   State: ${automation._state}`);
+    });
+    console.groupEnd();
+  }
+  
   return filteredAutomations;
 }
 

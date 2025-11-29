@@ -1,14 +1,5 @@
 import type { HomeAssistant } from "custom-card-helpers";
 import type { Schedule } from "../types";
-/**
- * Получает список всех автоматизаций используя только задокументированные методы
- * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
- *
- * Использует команду get_config из WebSocket API, которая возвращает конфигурацию Home Assistant.
- * Автоматизации могут быть в config.components.automation или в другом месте конфигурации.
- *
- * Если get_config не содержит автоматизаций, используем hass.states как fallback.
- */
 export declare function getAllAutomations(hass: HomeAssistant): Promise<any[]>;
 /**
  * Получает конфигурацию автоматизации по ID из списка всех автоматизаций
@@ -27,14 +18,24 @@ export declare function parseScheduleFromAutomation(automationConfig: any, autom
 } | null;
 /**
  * Создает или обновляет автоматизацию
- * Использует задокументированную команду call_service из WebSocket API
- * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+ * Использует REST API как основной метод (POST /api/config/automation/config/{automation_id})
+ * Согласно документации: https://developers.home-assistant.io/docs/api/rest
+ *
+ * Fallback на WebSocket API если REST API не работает
+ *
+ * Примечание: lovelace-auto-entities не использует такие функции, так как только отображает сущности.
+ * В нашем проекте мы управляем автоматизациями, поэтому используем эти функции.
  */
 export declare function createOrUpdateAutomation(hass: HomeAssistant, automation: any): Promise<boolean>;
 /**
  * Удаляет автоматизацию
- * Использует задокументированную команду call_service из WebSocket API
- * Согласно документации: https://developers.home-assistant.io/docs/api/websocket
+ * Использует REST API как основной метод (DELETE /api/config/automation/config/{automation_id})
+ * Согласно документации: https://developers.home-assistant.io/docs/api/rest
+ *
+ * Fallback на WebSocket API если REST API не работает
+ *
+ * Примечание: lovelace-auto-entities не использует такие функции, так как только отображает сущности.
+ * В нашем проекте мы управляем автоматизациями, поэтому используем эти функции.
  */
 export declare function deleteAutomation(hass: HomeAssistant, automationId: string): Promise<boolean>;
 /**
