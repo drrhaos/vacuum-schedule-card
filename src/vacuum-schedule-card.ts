@@ -245,7 +245,7 @@ class VacuumScheduleCard extends LitElement {
       <ha-card>
         <div class="header">
           <span>${this._config?.title || DEFAULT_TITLE}</span>
-          <span>${this._schedules.length} ${this._t("schedules_count")}</span>
+          <span>${this._t("schedules_count")}: ${this._schedules.length}</span>
         </div>
         
         <vacuum-control-panel
