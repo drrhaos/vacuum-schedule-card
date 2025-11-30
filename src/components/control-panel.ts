@@ -428,7 +428,10 @@ export class ControlPanel extends LitElement {
               @click=${this._handleStart}
               title="${this._t("start") || "Запуск"}"
             >
-              <ha-icon .icon=${"mdi:play"}></ha-icon> ${this._t("start") || "Запуск"}
+              <div class="control-button-content">
+                <ha-icon .icon=${"mdi:play"}></ha-icon>
+                <span class="control-button-label">${this._t("start") || "Запуск"}</span>
+              </div>
             </ha-button>
           ` : ""}
           ${!isStopDisabled ? html`
@@ -437,7 +440,10 @@ export class ControlPanel extends LitElement {
               @click=${this._handleStop}
               title="${this._t("stop") || "Остановка"}"
             >
-              <ha-icon .icon=${"mdi:stop"}></ha-icon> ${this._t("stop") || "Остановка"}
+              <div class="control-button-content">
+                <ha-icon .icon=${"mdi:stop"}></ha-icon>
+                <span class="control-button-label">${this._t("stop") || "Остановка"}</span>
+              </div>
             </ha-button>
           ` : ""}
           ${!isPauseDisabled ? html`
@@ -446,7 +452,10 @@ export class ControlPanel extends LitElement {
               @click=${this._handlePause}
               title="${this._t("pause") || "Пауза"}"
             >
-              <ha-icon .icon=${"mdi:pause"}></ha-icon> ${this._t("pause") || "Пауза"}
+              <div class="control-button-content">
+                <ha-icon .icon=${"mdi:pause"}></ha-icon>
+                <span class="control-button-label">${this._t("pause") || "Пауза"}</span>
+              </div>
             </ha-button>
           ` : ""}
           ${!isReturnDisabled ? html`
@@ -455,7 +464,10 @@ export class ControlPanel extends LitElement {
               @click=${this._handleReturnToBase}
               title="${this._t("return_to_base") || "На станцию"}"
             >
-              <ha-icon .icon=${"mdi:home-map-marker"}></ha-icon> ${this._t("return_to_base") || "На станцию"}
+              <div class="control-button-content">
+                <ha-icon .icon=${"mdi:home-map-marker"}></ha-icon>
+                <span class="control-button-label">${this._t("return_to_base") || "На станцию"}</span>
+              </div>
             </ha-button>
           ` : ""}
         </div>
@@ -623,24 +635,35 @@ export class ControlPanel extends LitElement {
       }
       .control-button {
         flex: 1;
-        min-width: 120px;
-        min-height: 56px;
-        font-size: 16px;
-        padding: 12px 16px;
+        min-width: 100px;
+        min-height: 70px;
+        font-size: 14px;
+        padding: 12px 8px;
         -webkit-tap-highlight-color: var(--divider-color, var(--ha-card-border-color));
         touch-action: manipulation;
+      }
+      .control-button-content {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 6px;
+        width: 100%;
+        height: 100%;
       }
       .control-button ha-icon {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+      }
+      .control-button-label {
+        font-size: 13px;
+        line-height: 1.2;
+        text-align: center;
+        word-break: break-word;
       }
       .rooms-row {
         margin-top: 12px;
