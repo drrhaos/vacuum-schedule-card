@@ -393,7 +393,7 @@ export class ControlPanel extends LitElement {
         <div class="control-panel-status">
           <span class="status-icon ${vacuumState === "cleaning" ? "cleaning" : ""}">${unsafeHTML(getVacuumRobotSVG("default"))}</span>
           <div class="status-info">
-            <span class="status-text">Статус: <strong>${this._getStateLabel()}${this._getAdditionalState() ? `, ${this._getAdditionalStateLabel()}` : ""}</strong></span>
+            <span class="status-text"><strong>${this._getStateLabel()}${this._getAdditionalState() ? `, ${this._getAdditionalStateLabel()}` : ""}</strong></span>
             ${this._getError() ? html`
               <span class="status-error">${this._getError()}</span>
             ` : ""}
