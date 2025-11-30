@@ -14,7 +14,7 @@ export class VacuumService implements VacuumControl {
     private entity: string
   ) {}
 
-  async start(rooms?: number[], cleaningType: CleaningType = "vacuum"): Promise<void> {
+  async start(rooms?: number[], cleaningType: CleaningType = "vacuum_and_mop"): Promise<void> {
     if (rooms && rooms.length > 0) {
       // Для конкретных комнат используем сервисы с _segment
       let serviceName: string;

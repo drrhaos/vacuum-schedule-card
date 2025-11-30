@@ -70,7 +70,7 @@ export class ScheduleList extends LitElement {
                   ${schedule.rooms.length > 0
                     ? ` • ${this._formatRooms(schedule.rooms)}`
                     : ` • ${this._t("all_rooms")}`}
-                  ${schedule.cleaning_type && schedule.cleaning_type !== "vacuum"
+                  ${schedule.cleaning_type && schedule.cleaning_type !== "vacuum_and_mop"
                     ? ` • ${this._getCleaningTypeLabel(schedule.cleaning_type)}`
                     : ""}
                 </div>

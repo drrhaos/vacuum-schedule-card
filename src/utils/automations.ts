@@ -370,7 +370,7 @@ export async function deleteAutomation(
   }
 }
 
-function getServiceName(cleaningType: CleaningType = "vacuum"): string {
+function getServiceName(cleaningType: CleaningType = "vacuum_and_mop"): string {
   switch (cleaningType) {
     case "mop":
       return "dreame_vacuum.vacuum_mop_segment";
@@ -392,7 +392,7 @@ export function createAutomationFromSchedule(
   const automationId = `${AUTOMATION_PREFIX}${schedule.id}_day_${day}`;
   const dayName = getWeekdayName(day);
   const [hours, minutes] = schedule.time.split(":").map(Number);
-  const cleaningType = schedule.cleaning_type || "vacuum";
+  const cleaningType = schedule.cleaning_type || "vacuum_and_mop";
   const serviceName = getServiceName(cleaningType);
 
   // Если комнаты не выбраны, используем обычный сервис без _segment

@@ -18,7 +18,7 @@ export class ScheduleDialog extends LitElement {
     days: [],
     time: "09:00",
     rooms: [],
-    cleaning_type: "vacuum",
+    cleaning_type: "vacuum_and_mop",
   };
 
   updated(changedProperties: Map<string | number | symbol, unknown>): void {
@@ -35,7 +35,7 @@ export class ScheduleDialog extends LitElement {
           time: this.schedule.time,
           rooms: validRooms,
           name: this.schedule.name,
-          cleaning_type: this.schedule.cleaning_type || "vacuum",
+          cleaning_type: this.schedule.cleaning_type || "vacuum_and_mop",
         };
       } else if (this.open && !this.schedule) {
         this._newSchedule = {
@@ -43,7 +43,7 @@ export class ScheduleDialog extends LitElement {
           days: [],
           time: "09:00",
           rooms: [],
-          cleaning_type: "vacuum",
+          cleaning_type: "vacuum_and_mop",
         };
       }
     }
@@ -83,7 +83,7 @@ export class ScheduleDialog extends LitElement {
             time: this._newSchedule.time || "09:00",
             rooms: this._newSchedule.rooms || [],
             name: this._newSchedule.name,
-            cleaning_type: this._newSchedule.cleaning_type || "vacuum",
+            cleaning_type: this._newSchedule.cleaning_type || "vacuum_and_mop",
           },
         },
       })
@@ -208,7 +208,7 @@ export class ScheduleDialog extends LitElement {
             <label class="form-label">${this._t("cleaning_type_label")}</label>
             <select
               class="form-input"
-              .value=${this._newSchedule.cleaning_type || "vacuum"}
+              .value=${this._newSchedule.cleaning_type || "vacuum_and_mop"}
               @change=${this._handleCleaningTypeChange}
             >
               <option value="vacuum">${this._t("cleaning_type_vacuum")}</option>

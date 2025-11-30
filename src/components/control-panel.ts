@@ -21,7 +21,7 @@ export class ControlPanel extends LitElement {
 
   @state() private _vacuumService?: VacuumService;
   @state() private _currentCleaningRooms: number[] = [];
-  @state() private _selectedCleaningType: CleaningType = "vacuum";
+  @state() private _selectedCleaningType: CleaningType = "vacuum_and_mop";
 
   connectedCallback(): void {
     super.connectedCallback();

@@ -65,7 +65,7 @@ export class ScheduleService {
             time: parsed.time || "09:00",
             rooms: parsed.rooms || [],
             name: (automationConfig as any).alias || undefined,
-            cleaning_type: parsed.cleaning_type || "vacuum",
+            cleaning_type: parsed.cleaning_type || "vacuum_and_mop",
           });
         }
 
