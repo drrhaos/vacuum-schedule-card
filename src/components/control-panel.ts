@@ -293,7 +293,7 @@ export class ControlPanel extends LitElement {
 
     // 3. Дефолтная иконка
     if (!iconToUse) {
-      return html`🏠`;
+      return html`<ha-icon .icon=${"mdi:home"}></ha-icon>`;
     }
 
     // Если иконка начинается с "mdi:" или "hass:", используем ha-icon
@@ -428,7 +428,7 @@ export class ControlPanel extends LitElement {
               @click=${this._handleStart}
               title="${this._t("start") || "Запуск"}"
             >
-              ▶️ ${this._t("start") || "Запуск"}
+              <ha-icon .icon=${"mdi:play"}></ha-icon> ${this._t("start") || "Запуск"}
             </ha-button>
           ` : ""}
           ${!isStopDisabled ? html`
@@ -437,7 +437,7 @@ export class ControlPanel extends LitElement {
               @click=${this._handleStop}
               title="${this._t("stop") || "Остановка"}"
             >
-              ⏹️ ${this._t("stop") || "Остановка"}
+              <ha-icon .icon=${"mdi:stop"}></ha-icon> ${this._t("stop") || "Остановка"}
             </ha-button>
           ` : ""}
           ${!isPauseDisabled ? html`
@@ -446,7 +446,7 @@ export class ControlPanel extends LitElement {
               @click=${this._handlePause}
               title="${this._t("pause") || "Пауза"}"
             >
-              ⏸️ ${this._t("pause") || "Пауза"}
+              <ha-icon .icon=${"mdi:pause"}></ha-icon> ${this._t("pause") || "Пауза"}
             </ha-button>
           ` : ""}
           ${!isReturnDisabled ? html`
@@ -455,7 +455,7 @@ export class ControlPanel extends LitElement {
               @click=${this._handleReturnToBase}
               title="${this._t("return_to_base") || "На станцию"}"
             >
-              🏠 ${this._t("return_to_base") || "На станцию"}
+              <ha-icon .icon=${"mdi:home-map-marker"}></ha-icon> ${this._t("return_to_base") || "На станцию"}
             </ha-button>
           ` : ""}
         </div>
@@ -629,6 +629,18 @@ export class ControlPanel extends LitElement {
         padding: 12px 16px;
         -webkit-tap-highlight-color: var(--divider-color, var(--ha-card-border-color));
         touch-action: manipulation;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .control-button ha-icon {
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
       }
       .rooms-row {
         margin-top: 12px;
