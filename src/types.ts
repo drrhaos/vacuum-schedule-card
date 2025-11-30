@@ -1,3 +1,5 @@
+export type CleaningType = "vacuum" | "mop" | "vacuum_and_mop";
+
 export interface VacuumScheduleCardConfig {
   entity: string;
   type: string;
@@ -14,6 +16,7 @@ export interface Schedule {
   time: string; // HH:MM формат
   rooms: number[]; // ID комнат
   name?: string; // Опциональное имя расписания
+  cleaning_type?: CleaningType; // Тип уборки: vacuum (сухая), mop (влажная), vacuum_and_mop (комбинированная)
 }
 
 export interface Room {

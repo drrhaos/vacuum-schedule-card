@@ -2,7 +2,7 @@ import { LitElement, html, css } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
-import type { Room } from "../types";
+import type { Room, CleaningType } from "../types";
 import { VacuumService } from "../services/vacuum.service";
 import { translate } from "../utils/i18n";
 import { getVacuumRobotSVG } from "../utils/svg-loader";
@@ -21,6 +21,7 @@ export class ControlPanel extends LitElement {
 
   @state() private _vacuumService?: VacuumService;
   @state() private _currentCleaningRooms: number[] = [];
+  @state() private _selectedCleaningType: CleaningType = "vacuum";
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -307,12 +308,20 @@ export class ControlPanel extends LitElement {
   private async _handleStart(): Promise<void> {
     if (!this._vacuumService) return;
     try {
-      await this._vacuumService.start(this.selectedRooms.length > 0 ? this.selectedRooms : undefined);
+      await this._vacuumService.start(
+        this.selectedRooms.length > 0 ? this.selectedRooms : undefined,
+        this._selectedCleaningType
+      );
       this.dispatchEvent(new CustomEvent("vacuum-started"));
     } catch (error) {
       console.error("[Vacuum Schedule Card] Ошибка запуска уборки:", error);
       this.dispatchEvent(new CustomEvent("error", { detail: { message: `${this._t("error_starting") || "Ошибка запуска"}: ${error}` } }));
     }
+  }
+
+  private _handleCleaningTypeChange(e: Event): void {
+    this._selectedCleaningType = (e.target as HTMLSelectElement).value as CleaningType;
+    this.requestUpdate();
   }
 
   private async _handleStop(): Promise<void> {
@@ -398,6 +407,19 @@ export class ControlPanel extends LitElement {
               <span class="status-error">${this._getError()}</span>
             ` : ""}
           </div>
+        </div>
+        <div class="control-row cleaning-type-row">
+          <label class="cleaning-type-label">${this._t("cleaning_type_label") || "Тип уборки"}:</label>
+          <select
+            class="cleaning-type-select"
+            .value=${this._selectedCleaningType}
+            @change=${this._handleCleaningTypeChange}
+            ?disabled=${this._isCleaning()}
+          >
+            <option value="vacuum">${this._t("cleaning_type_vacuum") || "Сухая уборка"}</option>
+            <option value="mop">${this._t("cleaning_type_mop") || "Влажная уборка"}</option>
+            <option value="vacuum_and_mop">${this._t("cleaning_type_vacuum_and_mop") || "Сухая и влажная уборка"}</option>
+          </select>
         </div>
         <div class="control-row">
           ${!isStartDisabled ? html`
@@ -567,6 +589,37 @@ export class ControlPanel extends LitElement {
       }
       .control-row:last-child {
         margin-bottom: 0;
+      }
+      .cleaning-type-row {
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .cleaning-type-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--primary-text-color);
+        white-space: nowrap;
+      }
+      .cleaning-type-select {
+        flex: 1;
+        padding: 8px 12px;
+        border: 2px solid var(--divider-color, var(--ha-card-border-color));
+        border-radius: var(--ha-card-border-radius, 4px);
+        background: var(--card-background-color, var(--ha-card-background));
+        color: var(--primary-text-color);
+        font-size: 14px;
+        font-family: inherit;
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+      .cleaning-type-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+      }
+      .cleaning-type-select:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
       }
       .control-button {
         flex: 1;

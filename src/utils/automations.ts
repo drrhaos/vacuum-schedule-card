@@ -1,5 +1,5 @@
 import type { HomeAssistant } from "custom-card-helpers";
-import type { Schedule } from "../types";
+import type { Schedule, CleaningType } from "../types";
 import type {
   AutomationConfig,
   AutomationTrigger,
@@ -147,13 +147,23 @@ export async function getAutomationConfig(
   return automation || null;
 }
 
+function getCleaningTypeFromService(service: string): CleaningType {
+  if (service.includes("vacuum_mop_segment") || service.includes("vacuum_mop")) {
+    return "mop";
+  }
+  if (service.includes("vacuum_clean_and_mop_segment") || service.includes("vacuum_clean_and_mop")) {
+    return "vacuum_and_mop";
+  }
+  return "vacuum";
+}
+
 /**
  * Парсит расписание из конфигурации автоматизации
  */
 export function parseScheduleFromAutomation(
   automationConfig: AutomationConfig,
   automationState: AutomationState | null
-): { scheduleId: string; day: number; time: string; rooms: number[]; enabled: boolean } | null {
+): { scheduleId: string; day: number; time: string; rooms: number[]; enabled: boolean; cleaning_type?: CleaningType } | null {
   const configId = automationConfig.id || "";
   if (!configId.startsWith("vacuum_schedule_") || !configId.includes("_day_")) {
     return null;
@@ -215,16 +225,25 @@ export function parseScheduleFromAutomation(
     return null;
   }
   
+  // Ищем любое действие, связанное с пылесосом (vacuum, mop, clean_and_mop)
   const action = actions.find((a: any) => {
     if (!a) return false;
     const service = a.service || a.action;
-    return service && typeof service === "string" && service.includes("vacuum_clean_segment");
+    if (!service || typeof service !== "string") return false;
+    return service.includes("vacuum_clean_segment") || 
+           service.includes("vacuum_mop_segment") || 
+           service.includes("vacuum_clean_and_mop_segment") ||
+           service === "vacuum.start" ||
+           service.includes("vacuum_mop") ||
+           service.includes("vacuum_clean_and_mop");
   });
   
   if (!action) {
     return null;
   }
   
+  const service = (action.service || action.action) as string;
+  const cleaningType = getCleaningTypeFromService(service);
   const segments = action.data?.segments;
   const rooms = Array.isArray(segments) ? segments : segments ? [segments] : [];
 
@@ -234,6 +253,7 @@ export function parseScheduleFromAutomation(
     time,
     rooms,
     enabled: automationState?.state === "on",
+    cleaning_type: cleaningType,
   };
 }
 
@@ -350,6 +370,18 @@ export async function deleteAutomation(
   }
 }
 
+function getServiceName(cleaningType: CleaningType = "vacuum"): string {
+  switch (cleaningType) {
+    case "mop":
+      return "dreame_vacuum.vacuum_mop_segment";
+    case "vacuum_and_mop":
+      return "dreame_vacuum.vacuum_clean_and_mop_segment";
+    case "vacuum":
+    default:
+      return "dreame_vacuum.vacuum_clean_segment";
+  }
+}
+
 export function createAutomationFromSchedule(
   schedule: Schedule,
   day: number,
@@ -360,6 +392,52 @@ export function createAutomationFromSchedule(
   const automationId = `${AUTOMATION_PREFIX}${schedule.id}_day_${day}`;
   const dayName = getWeekdayName(day);
   const [hours, minutes] = schedule.time.split(":").map(Number);
+  const cleaningType = schedule.cleaning_type || "vacuum";
+  const serviceName = getServiceName(cleaningType);
+
+  // Если комнаты не выбраны, используем обычный сервис без _segment
+  let action: AutomationAction;
+  if (schedule.rooms.length === 0) {
+    // Для всех комнат используем обычные сервисы
+    switch (cleaningType) {
+      case "mop":
+        action = {
+          service: "dreame_vacuum.vacuum_mop",
+          target: {
+            entity_id: entity,
+          },
+        };
+        break;
+      case "vacuum_and_mop":
+        action = {
+          service: "dreame_vacuum.vacuum_clean_and_mop",
+          target: {
+            entity_id: entity,
+          },
+        };
+        break;
+      case "vacuum":
+      default:
+        action = {
+          service: "vacuum.start",
+          target: {
+            entity_id: entity,
+          },
+        };
+        break;
+    }
+  } else {
+    // Для конкретных комнат используем сервисы с _segment
+    action = {
+      service: serviceName,
+      target: {
+        entity_id: entity,
+      },
+      data: {
+        segments: schedule.rooms,
+      },
+    };
+  }
 
   return {
     id: automationId,
@@ -377,17 +455,7 @@ export function createAutomationFromSchedule(
         weekday: dayName,
       },
     ],
-    action: [
-      {
-        service: "dreame_vacuum.vacuum_clean_segment",
-        target: {
-          entity_id: entity,
-        },
-        data: {
-          segments: schedule.rooms.length > 0 ? schedule.rooms : undefined,
-        },
-      },
-    ],
+    action: [action],
     mode: "single",
   };
 }

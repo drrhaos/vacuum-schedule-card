@@ -82,5 +82,13 @@ export const en = {
   "state_returning_for_mop_rinsing": "returning for mop rinsing",
   "state_washing_paused": "washing paused",
   "state_returning_to_base": "returning to base",
+  "cleaning_type_label": "Cleaning Type",
+  "cleaning_type_vacuum": "Vacuum Only",
+  "cleaning_type_mop": "Mop Only",
+  "cleaning_type_vacuum_and_mop": "Vacuum and Mop",
+  "name_label": "Name",
+  "name_placeholder": "Schedule name (optional)",
+  "error_time_required": "Time is required",
+  "error_days_required": "Select at least one day",
 } as const;
 

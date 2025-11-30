@@ -65,6 +65,7 @@ export class ScheduleService {
             time: parsed.time || "09:00",
             rooms: parsed.rooms || [],
             name: (automationConfig as any).alias || undefined,
+            cleaning_type: parsed.cleaning_type || "vacuum",
           });
         }
 
@@ -74,6 +75,9 @@ export class ScheduleService {
         }
         if (parsed.rooms.length > 0) {
           schedule.rooms = parsed.rooms;
+        }
+        if (parsed.cleaning_type) {
+          schedule.cleaning_type = parsed.cleaning_type;
         }
         if (automationState) {
           schedule.enabled = automationState.state === "on";

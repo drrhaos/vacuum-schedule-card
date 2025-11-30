@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
-import type { Schedule, Room } from "../types";
+import type { Schedule, Room, CleaningType } from "../types";
 import { translate, getDayNames } from "../utils/i18n";
 
 @customElement("vacuum-schedule-dialog")
@@ -18,6 +18,7 @@ export class ScheduleDialog extends LitElement {
     days: [],
     time: "09:00",
     rooms: [],
+    cleaning_type: "vacuum",
   };
 
   updated(changedProperties: Map<string | number | symbol, unknown>): void {
@@ -34,6 +35,7 @@ export class ScheduleDialog extends LitElement {
           time: this.schedule.time,
           rooms: validRooms,
           name: this.schedule.name,
+          cleaning_type: this.schedule.cleaning_type || "vacuum",
         };
       } else if (this.open && !this.schedule) {
         this._newSchedule = {
@@ -41,6 +43,7 @@ export class ScheduleDialog extends LitElement {
           days: [],
           time: "09:00",
           rooms: [],
+          cleaning_type: "vacuum",
         };
       }
     }
@@ -80,6 +83,7 @@ export class ScheduleDialog extends LitElement {
             time: this._newSchedule.time || "09:00",
             rooms: this._newSchedule.rooms || [],
             name: this._newSchedule.name,
+            cleaning_type: this._newSchedule.cleaning_type || "vacuum",
           },
         },
       })
@@ -140,6 +144,11 @@ export class ScheduleDialog extends LitElement {
     this._newSchedule.name = (e.target as HTMLInputElement).value || undefined;
   }
 
+  private _handleCleaningTypeChange(e: Event): void {
+    this._newSchedule.cleaning_type = (e.target as HTMLSelectElement).value as CleaningType;
+    this.requestUpdate();
+  }
+
   render() {
     if (!this.open) {
       return html``;
@@ -193,6 +202,19 @@ export class ScheduleDialog extends LitElement {
               .value=${this._newSchedule.time || "09:00"}
               @input=${this._handleTimeChange}
             />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">${this._t("cleaning_type_label")}</label>
+            <select
+              class="form-input"
+              .value=${this._newSchedule.cleaning_type || "vacuum"}
+              @change=${this._handleCleaningTypeChange}
+            >
+              <option value="vacuum">${this._t("cleaning_type_vacuum")}</option>
+              <option value="mop">${this._t("cleaning_type_mop")}</option>
+              <option value="vacuum_and_mop">${this._t("cleaning_type_vacuum_and_mop")}</option>
+            </select>
           </div>
 
           <div class="form-group">

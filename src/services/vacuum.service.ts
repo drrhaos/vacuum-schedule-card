@@ -1,7 +1,8 @@
 import type { HomeAssistant } from "custom-card-helpers";
+import type { CleaningType } from "../types";
 
 export interface VacuumControl {
-  start(rooms?: number[]): Promise<void>;
+  start(rooms?: number[], cleaningType?: CleaningType): Promise<void>;
   stop(): Promise<void>;
   pause(): Promise<void>;
   returnToBase(): Promise<void>;
@@ -13,16 +14,46 @@ export class VacuumService implements VacuumControl {
     private entity: string
   ) {}
 
-  async start(rooms?: number[]): Promise<void> {
+  async start(rooms?: number[], cleaningType: CleaningType = "vacuum"): Promise<void> {
     if (rooms && rooms.length > 0) {
-      await this.hass.callService("dreame_vacuum", "vacuum_clean_segment", {
+      // Для конкретных комнат используем сервисы с _segment
+      let serviceName: string;
+      switch (cleaningType) {
+        case "mop":
+          serviceName = "vacuum_mop_segment";
+          break;
+        case "vacuum_and_mop":
+          serviceName = "vacuum_clean_and_mop_segment";
+          break;
+        case "vacuum":
+        default:
+          serviceName = "vacuum_clean_segment";
+          break;
+      }
+      await this.hass.callService("dreame_vacuum", serviceName, {
         entity_id: this.entity,
         segments: rooms,
       });
     } else {
-      await this.hass.callService("vacuum", "start", {
-        entity_id: this.entity,
-      });
+      // Для всех комнат используем обычные сервисы
+      switch (cleaningType) {
+        case "mop":
+          await this.hass.callService("dreame_vacuum", "vacuum_mop", {
+            entity_id: this.entity,
+          });
+          break;
+        case "vacuum_and_mop":
+          await this.hass.callService("dreame_vacuum", "vacuum_clean_and_mop", {
+            entity_id: this.entity,
+          });
+          break;
+        case "vacuum":
+        default:
+          await this.hass.callService("vacuum", "start", {
+            entity_id: this.entity,
+          });
+          break;
+      }
     }
   }
 

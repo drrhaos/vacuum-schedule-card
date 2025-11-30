@@ -82,5 +82,13 @@ export const ru = {
   "state_returning_for_mop_rinsing": "возвращение для полоскания швабры",
   "state_washing_paused": "стирка приостановлена",
   "state_returning_to_base": "возвращение на базу",
+  "cleaning_type_label": "Тип уборки",
+  "cleaning_type_vacuum": "Сухая уборка",
+  "cleaning_type_mop": "Влажная уборка",
+  "cleaning_type_vacuum_and_mop": "Сухая и влажная уборка",
+  "name_label": "Название",
+  "name_placeholder": "Название расписания (необязательно)",
+  "error_time_required": "Время обязательно",
+  "error_days_required": "Выберите хотя бы один день",
 } as const;
 

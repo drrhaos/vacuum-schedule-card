@@ -27,6 +27,18 @@ export class ScheduleList extends LitElement {
     return formatRooms(roomIds, this.rooms, this._t("all_rooms"));
   }
 
+  private _getCleaningTypeLabel(cleaningType: string): string {
+    switch (cleaningType) {
+      case "mop":
+        return this._t("cleaning_type_mop") || "Влажная уборка";
+      case "vacuum_and_mop":
+        return this._t("cleaning_type_vacuum_and_mop") || "Сухая и влажная уборка";
+      case "vacuum":
+      default:
+        return this._t("cleaning_type_vacuum") || "Сухая уборка";
+    }
+  }
+
   private _handleEdit(schedule: Schedule): void {
     this.dispatchEvent(new CustomEvent("schedule-edit", { detail: { schedule } }));
   }
@@ -58,6 +70,9 @@ export class ScheduleList extends LitElement {
                   ${schedule.rooms.length > 0
                     ? ` • ${this._formatRooms(schedule.rooms)}`
                     : ` • ${this._t("all_rooms")}`}
+                  ${schedule.cleaning_type && schedule.cleaning_type !== "vacuum"
+                    ? ` • ${this._getCleaningTypeLabel(schedule.cleaning_type)}`
+                    : ""}
                 </div>
               </div>
               <div class="schedule-actions" @click=${(e: MouseEvent) => e.stopPropagation()}>
