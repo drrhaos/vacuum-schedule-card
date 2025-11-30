@@ -14,46 +14,82 @@ export class VacuumService implements VacuumControl {
     private entity: string
   ) {}
 
-  async start(rooms?: number[], cleaningType: CleaningType = "vacuum_and_mop"): Promise<void> {
-    if (rooms && rooms.length > 0) {
-      // Для конкретных комнат используем сервисы с _segment
-      let serviceName: string;
-      switch (cleaningType) {
-        case "mop":
-          serviceName = "vacuum_mop_segment";
-          break;
-        case "vacuum_and_mop":
-          serviceName = "vacuum_clean_and_mop_segment";
-          break;
-        case "vacuum":
-        default:
-          serviceName = "vacuum_clean_segment";
-          break;
+  /**
+   * Получает entity ID для select.cleaning_mode
+   * Возможные варианты: select.{entity_name}_cleaning_mode
+   */
+  private getCleaningModeEntityId(): string | null {
+    const entityName = this.entity.replace(/^vacuum\./, "");
+    const possibleIds = [
+      `select.${entityName}_cleaning_mode`,
+      `select.${entityName}_cleaning_mode_2`,
+    ];
+    
+    for (const entityId of possibleIds) {
+      const state = this.hass.states[entityId];
+      if (state) {
+        return entityId;
       }
-      await this.hass.callService("dreame_vacuum", serviceName, {
+    }
+    
+    return null;
+  }
+
+  /**
+   * Преобразует CleaningType в значение для select.cleaning_mode
+   */
+  private getCleaningModeValue(cleaningType: CleaningType): string {
+    switch (cleaningType) {
+      case "vacuum":
+        return "sweeping";
+      case "mop":
+        return "mopping";
+      case "vacuum_and_mop":
+        return "sweeping_and_mopping";
+      default:
+        return "sweeping_and_mopping";
+    }
+  }
+
+  /**
+   * Устанавливает режим уборки через select entity (если доступен)
+   */
+  private async setCleaningMode(cleaningType: CleaningType): Promise<boolean> {
+    const cleaningModeEntityId = this.getCleaningModeEntityId();
+    if (!cleaningModeEntityId) {
+      // Select entity не найден, пропускаем установку режима
+      return false;
+    }
+
+    try {
+      const cleaningModeValue = this.getCleaningModeValue(cleaningType);
+      await this.hass.callService("select", "select_option", {
+        entity_id: cleaningModeEntityId,
+        option: cleaningModeValue,
+      });
+      return true;
+    } catch (error) {
+      console.warn(`[Vacuum Service] Не удалось установить режим уборки:`, error);
+      return false;
+    }
+  }
+
+  async start(rooms?: number[], cleaningType: CleaningType = "vacuum_and_mop"): Promise<void> {
+    // Шаг 1: Устанавливаем режим уборки через select entity (если доступен)
+    const cleaningModeSet = await this.setCleaningMode(cleaningType);
+    
+    // Шаг 2: Запускаем уборку
+    if (rooms && rooms.length > 0) {
+      // Для конкретных комнат используем vacuum_clean_segment
+      await this.hass.callService("dreame_vacuum", "vacuum_clean_segment", {
         entity_id: this.entity,
         segments: rooms,
       });
     } else {
-      // Для всех комнат используем обычные сервисы
-      switch (cleaningType) {
-        case "mop":
-          await this.hass.callService("dreame_vacuum", "vacuum_mop", {
-            entity_id: this.entity,
-          });
-          break;
-        case "vacuum_and_mop":
-          await this.hass.callService("dreame_vacuum", "vacuum_clean_and_mop", {
-            entity_id: this.entity,
-          });
-          break;
-        case "vacuum":
-        default:
-          await this.hass.callService("vacuum", "start", {
-            entity_id: this.entity,
-          });
-          break;
-      }
+      // Для всех комнат используем vacuum.start
+      await this.hass.callService("vacuum", "start", {
+        entity_id: this.entity,
+      });
     }
   }
 

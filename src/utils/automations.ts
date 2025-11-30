@@ -147,6 +147,23 @@ export async function getAutomationConfig(
   return automation || null;
 }
 
+/**
+ * Получает CleaningType из значения select.cleaning_mode
+ */
+function getCleaningTypeFromModeValue(modeValue: string): CleaningType {
+  const normalized = modeValue.toLowerCase().trim();
+  if (normalized === "mopping") {
+    return "mop";
+  }
+  if (normalized === "sweeping_and_mopping") {
+    return "vacuum_and_mop";
+  }
+  return "vacuum"; // "sweeping" или по умолчанию
+}
+
+/**
+ * Получает CleaningType из сервиса (для обратной совместимости)
+ */
 function getCleaningTypeFromService(service: string): CleaningType {
   if (service.includes("vacuum_mop_segment") || service.includes("vacuum_mop")) {
     return "mop";
@@ -225,7 +242,22 @@ export function parseScheduleFromAutomation(
     return null;
   }
   
-  // Ищем любое действие, связанное с пылесосом (vacuum, mop, clean_and_mop)
+  // Ищем действие с select.select_option для определения режима уборки
+  let cleaningType: CleaningType = "vacuum_and_mop"; // по умолчанию
+  const selectAction = actions.find((a: any) => {
+    if (!a) return false;
+    const service = a.service || a.action;
+    return service === "select.select_option" || service?.includes("select.select_option");
+  });
+  
+  if (selectAction) {
+    const option = selectAction.data?.option;
+    if (option && typeof option === "string") {
+      cleaningType = getCleaningTypeFromModeValue(option);
+    }
+  }
+  
+  // Ищем действие запуска уборки для получения комнат
   const action = actions.find((a: any) => {
     if (!a) return false;
     const service = a.service || a.action;
@@ -242,8 +274,12 @@ export function parseScheduleFromAutomation(
     return null;
   }
   
-  const service = (action.service || action.action) as string;
-  const cleaningType = getCleaningTypeFromService(service);
+  // Если режим не был определен из select, пытаемся определить из сервиса (для обратной совместимости)
+  if (!selectAction) {
+    const service = (action.service || action.action) as string;
+    cleaningType = getCleaningTypeFromService(service);
+  }
+  
   const segments = action.data?.segments;
   const rooms = Array.isArray(segments) ? segments : segments ? [segments] : [];
 
@@ -370,16 +406,28 @@ export async function deleteAutomation(
   }
 }
 
-function getServiceName(cleaningType: CleaningType = "vacuum_and_mop"): string {
+/**
+ * Преобразует CleaningType в значение для select.cleaning_mode
+ */
+function getCleaningModeValue(cleaningType: CleaningType): string {
   switch (cleaningType) {
-    case "mop":
-      return "dreame_vacuum.vacuum_mop_segment";
-    case "vacuum_and_mop":
-      return "dreame_vacuum.vacuum_clean_and_mop_segment";
     case "vacuum":
+      return "sweeping";
+    case "mop":
+      return "mopping";
+    case "vacuum_and_mop":
+      return "sweeping_and_mopping";
     default:
-      return "dreame_vacuum.vacuum_clean_segment";
+      return "sweeping_and_mopping";
   }
+}
+
+/**
+ * Получает entity ID для select.cleaning_mode на основе vacuum entity
+ */
+function getCleaningModeEntityId(vacuumEntity: string): string {
+  const entityName = vacuumEntity.replace(/^vacuum\./, "");
+  return `select.${entityName}_cleaning_mode`;
 }
 
 export function createAutomationFromSchedule(
@@ -393,50 +441,43 @@ export function createAutomationFromSchedule(
   const dayName = getWeekdayName(day);
   const [hours, minutes] = schedule.time.split(":").map(Number);
   const cleaningType = schedule.cleaning_type || "vacuum_and_mop";
-  const serviceName = getServiceName(cleaningType);
-
-  // Если комнаты не выбраны, используем обычный сервис без _segment
-  let action: AutomationAction;
+  
+  // Действия автоматизации: сначала устанавливаем режим уборки, затем запускаем
+  const actions: AutomationAction[] = [];
+  
+  // Шаг 1: Установить режим уборки через select entity
+  const cleaningModeEntityId = getCleaningModeEntityId(entity);
+  const cleaningModeValue = getCleaningModeValue(cleaningType);
+  actions.push({
+    service: "select.select_option",
+    target: {
+      entity_id: cleaningModeEntityId,
+    },
+    data: {
+      option: cleaningModeValue,
+    },
+  });
+  
+  // Шаг 2: Запустить уборку
   if (schedule.rooms.length === 0) {
-    // Для всех комнат используем обычные сервисы
-    switch (cleaningType) {
-      case "mop":
-        action = {
-          service: "dreame_vacuum.vacuum_mop",
-          target: {
-            entity_id: entity,
-          },
-        };
-        break;
-      case "vacuum_and_mop":
-        action = {
-          service: "dreame_vacuum.vacuum_clean_and_mop",
-          target: {
-            entity_id: entity,
-          },
-        };
-        break;
-      case "vacuum":
-      default:
-        action = {
-          service: "vacuum.start",
-          target: {
-            entity_id: entity,
-          },
-        };
-        break;
-    }
+    // Для всех комнат используем vacuum.start
+    actions.push({
+      service: "vacuum.start",
+      target: {
+        entity_id: entity,
+      },
+    });
   } else {
-    // Для конкретных комнат используем сервисы с _segment
-    action = {
-      service: serviceName,
+    // Для конкретных комнат используем vacuum_clean_segment
+    actions.push({
+      service: "dreame_vacuum.vacuum_clean_segment",
       target: {
         entity_id: entity,
       },
       data: {
         segments: schedule.rooms,
       },
-    };
+    });
   }
 
   return {
@@ -455,7 +496,7 @@ export function createAutomationFromSchedule(
         weekday: dayName,
       },
     ],
-    action: [action],
+    action: actions,
     mode: "single",
   };
 }
