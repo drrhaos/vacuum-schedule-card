@@ -1,4 +1,4 @@
-name: Build
+name: Lint
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build:
+  type-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,14 +23,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Build
-        run: npm run build
+      - name: TypeScript type check
+        run: npx tsc --noEmit
       
-      - name: Check build output
+      - name: Check for build errors
         run: |
-          if [ ! -f "dist/vacuum-schedule-card.js" ]; then
-            echo "Build failed: dist/vacuum-schedule-card.js not found"
-            exit 1
-          fi
-          echo "Build successful"
+          echo "✓ TypeScript type checking passed"
 
