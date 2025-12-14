@@ -1,5 +1,5 @@
 import type { HomeAssistant } from "custom-card-helpers";
-import type { Schedule } from "../types";
+import type { Schedule, VacuumIntegration } from "../types";
 import {
   getScheduleAutomations,
   parseScheduleFromAutomation,
@@ -15,6 +15,7 @@ export class ScheduleService {
   constructor(
     private hass: HomeAssistant,
     private entity: string,
+    private integration: VacuumIntegration,
     private getTranslation: (key: string) => string
   ) {}
 
@@ -148,7 +149,8 @@ export class ScheduleService {
       day,
       this.entity,
       dayNames,
-      this.getTranslation("schedule_title")
+      this.getTranslation("schedule_title"),
+      this.integration
     );
 
     const success = await createOrUpdateAutomation(this.hass, automation);

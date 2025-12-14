@@ -1,5 +1,5 @@
 import type { HomeAssistant } from "custom-card-helpers";
-import type { CleaningType } from "../types";
+import type { CleaningType, VacuumIntegration } from "../types";
 
 export interface VacuumControl {
   start(rooms?: number[], cleaningType?: CleaningType): Promise<void>;
@@ -11,7 +11,8 @@ export interface VacuumControl {
 export class VacuumService implements VacuumControl {
   constructor(
     private hass: HomeAssistant,
-    private entity: string
+    private entity: string,
+    private integration: VacuumIntegration
   ) {}
 
   /**
@@ -78,13 +79,26 @@ export class VacuumService implements VacuumControl {
     // Шаг 1: Устанавливаем режим уборки через select entity (если доступен)
     const cleaningModeSet = await this.setCleaningMode(cleaningType);
     
-    // Шаг 2: Запускаем уборку
+    // Шаг 2: Запускаем уборку в зависимости от типа интеграции
     if (rooms && rooms.length > 0) {
-      // Для конкретных комнат используем vacuum_clean_segment
-      await this.hass.callService("dreame_vacuum", "vacuum_clean_segment", {
-        entity_id: this.entity,
-        segments: rooms,
-      });
+      // Для конкретных комнат используем соответствующий сервис
+      if (this.integration === "dreame_vacuum") {
+        await this.hass.callService("dreame_vacuum", "vacuum_clean_segment", {
+          entity_id: this.entity,
+          segments: rooms,
+        });
+      } else if (this.integration === "xiaomi_miot") {
+        // Для xiaomi_miot используем сервис vacuum_clean_segment
+        await this.hass.callService("xiaomi_miot", "vacuum_clean_segment", {
+          entity_id: this.entity,
+          segments: rooms,
+        });
+      } else {
+        // Для стандартных пылесосов используем vacuum.start
+        await this.hass.callService("vacuum", "start", {
+          entity_id: this.entity,
+        });
+      }
     } else {
       // Для всех комнат используем vacuum.start
       await this.hass.callService("vacuum", "start", {

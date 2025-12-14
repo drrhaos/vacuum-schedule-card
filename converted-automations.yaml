@@ -1,0 +1,193 @@
+# Преобразованные автоматизации к новому виду с использованием select entity
+# Все автоматизации используют комбинированную уборку (vacuum_and_mop)
+
+- id: vacuum_schedule_schedule_1764406317203_day_1
+  alias: Расписание уборки 10:00 - Пн (schedule_1764406317203)
+  description: Автоматизация для расписания уборки 10:00 в Пн
+  triggers:
+  - platform: time
+    at: '10:00:00'
+  conditions:
+  - condition: time
+    weekday: mon
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 5
+      - 8
+      - 3
+  mode: single
+
+- id: vacuum_schedule_schedule_1764406317203_day_3
+  alias: Расписание уборки 10:00 - Ср (schedule_1764406317203)
+  description: Автоматизация для расписания уборки 10:00 в Ср
+  triggers:
+  - platform: time
+    at: '10:00:00'
+  conditions:
+  - condition: time
+    weekday: wed
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 5
+      - 8
+      - 3
+  mode: single
+
+- id: vacuum_schedule_schedule_1764406371082_day_5
+  alias: Расписание уборки 15:00 - Пт (schedule_1764406371082)
+  description: Автоматизация для расписания уборки 15:00 в Пт
+  triggers:
+  - platform: time
+    at: '15:00:00'
+  conditions:
+  - condition: time
+    weekday: fri
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 2
+      - 3
+      - 5
+      - 6
+      - 8
+  mode: single
+
+- id: vacuum_schedule_schedule_1764406601687_day_6
+  alias: Расписание уборки 12:00 - Сб (schedule_1764406601687)
+  description: Автоматизация для расписания уборки 12:00 в Сб
+  triggers:
+  - platform: time
+    at: '12:00:00'
+  conditions:
+  - condition: time
+    weekday: sat
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 3
+      - 5
+      - 8
+  mode: single
+
+- id: vacuum_schedule_schedule_1764406601687_day_0
+  alias: Расписание уборки 12:00 - Вс (schedule_1764406601687)
+  description: Автоматизация для расписания уборки 12:00 в Вс
+  triggers:
+  - platform: time
+    at: '12:00:00'
+  conditions:
+  - condition: time
+    weekday: sun
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 3
+      - 5
+      - 8
+  mode: single
+
+- id: vacuum_schedule_undefined_day_6
+  alias: Расписание уборки 19:00 - Сб (undefined)
+  description: Автоматизация для расписания уборки 19:00 в Сб
+  triggers:
+  - platform: time
+    at: '19:00:00'
+  conditions:
+  - condition: time
+    weekday: sat
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 3
+  mode: single
+
+- id: vacuum_schedule_undefined_day_0
+  alias: Расписание уборки 19:00 - Вс (undefined)
+  description: Автоматизация для расписания уборки 19:00 в Вс
+  triggers:
+  - platform: time
+    at: '19:00:00'
+  conditions:
+  - condition: time
+    weekday: sun
+  actions:
+  # Шаг 1: Установить режим уборки (комбинированная уборка)
+  - service: select.select_option
+    target:
+      entity_id: select.pylesos_cleaning_mode
+    data:
+      option: "sweeping_and_mopping"
+  # Шаг 2: Запустить уборку конкретных комнат
+  - service: dreame_vacuum.vacuum_clean_segment
+    target:
+      entity_id: vacuum.pylesos
+    data:
+      segments:
+      - 3
+  mode: single
+
+
+
+

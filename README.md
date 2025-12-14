@@ -1,6 +1,6 @@
 # Vacuum Schedule Card
 
-A custom Home Assistant Lovelace card for creating and managing vacuum cleaning schedules for robot vacuums (including Dreame, Xiaomi M30S, and others) using the [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) integration.
+A custom Home Assistant Lovelace card for creating and managing vacuum cleaning schedules for robot vacuums (including Dreame, Xiaomi M30S, Xiaomi D103CN, and others) using the [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) or [xiaomi_miot](https://www.home-assistant.io/integrations/xiaomi_miot/) integration.
 
 **Languages:** [English](README.md) | [Русский](README.ru.md)
 
@@ -81,6 +81,7 @@ HACS automatically uses the latest commit from the `main` branch for Lovelace ca
 ```yaml
 type: custom:vacuum-schedule-card
 entity: vacuum.your_vacuum_entity
+integration: dreame_vacuum  # Required: dreame_vacuum, xiaomi_miot, or standard
 title: "Vacuum Schedule"  # Optional: custom card title
 hidden_rooms: [16, 17]  # Optional: list of room IDs to hide from selection
 show_room_ids: false  # Optional: show room IDs on buttons
@@ -92,9 +93,18 @@ room_icons:  # Optional: custom icons for rooms
 
 Replace `vacuum.your_vacuum_entity` with your vacuum's entity ID (e.g., `vacuum.xiaomi_m30s`).
 
+**Integration types:**
+- `dreame_vacuum` - For Dreame vacuums and some Xiaomi models using the dreame-vacuum integration
+- `xiaomi_miot` - For Xiaomi MIOT devices (like D103CN) using the xiaomi_miot integration
+- `standard` - For standard vacuum integrations (uses basic vacuum.start service)
+
 ### Configuration Parameters
 
 - **`entity`** (required) - Vacuum entity ID (e.g., `vacuum.xiaomi_m30s`)
+- **`integration`** (required) - Type of vacuum integration: `dreame_vacuum`, `xiaomi_miot`, or `standard`
+  - Use `dreame_vacuum` for Dreame vacuums and some Xiaomi models using the dreame-vacuum integration
+  - Use `xiaomi_miot` for Xiaomi MIOT devices (like D103CN) using the xiaomi_miot integration
+  - Use `standard` for standard vacuum integrations (uses basic vacuum.start service)
 - **`title`** (optional) - Custom card title. If not specified, the default title from translations is used
 - **`hidden_rooms`** (optional) - Array of room IDs to hide from selection (e.g., `[16, 17]`). Hidden rooms will not appear in the control panel or in the schedule creation/editing dialog
 - **`show_room_ids`** (optional, default `false`) - Show room IDs on room selection buttons
@@ -148,12 +158,18 @@ By default, the card uses the room list from your vacuum's attributes. If rooms 
 
 To get the correct room IDs for your vacuum:
 
+**For dreame-vacuum integration:**
 1. Open Developer Tools in Home Assistant
 2. Go to the "Services" tab
 3. Select the `dreame_vacuum.get_room_mapping` service
 4. Specify your vacuum's `entity_id`
 5. Call the service
 6. Check the result in logs or notifications
+
+**For xiaomi_miot integration:**
+- Room IDs are typically available in the vacuum entity attributes
+- Check the `segments` or `room_list` attributes in Developer Tools → States
+- Some models may require using the Mi Home app to view room mappings
 
 ### Custom Room Icons
 
@@ -209,7 +225,7 @@ Where:
 Each automation contains:
 - **Trigger**: Cleaning time (e.g., `09:00:00`)
 - **Condition**: Day of week (e.g., `mon` for Monday)
-- **Action**: Call to `dreame_vacuum.vacuum_clean_segment` service with specified rooms
+- **Action**: Call to `dreame_vacuum.vacuum_clean_segment` or `xiaomi_miot.vacuum_clean_segment` service with specified rooms (depending on the integration used)
 
 ### Automatic Synchronization
 
@@ -230,8 +246,14 @@ The language is determined from Home Assistant settings (`hass.locale.language` 
 ## Requirements
 
 - Home Assistant 2023.1 or newer
-- [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) integration by Tasshack
-- Dreame robot vacuum (Xiaomi M30S and other models)
+- One of the following integrations:
+  - [dreame-vacuum](https://github.com/Tasshack/dreame-vacuum) integration by Tasshack (for Dreame and some Xiaomi models)
+  - [xiaomi_miot](https://www.home-assistant.io/integrations/xiaomi_miot/) integration (for Xiaomi MIOT devices like D103CN)
+- Supported robot vacuums:
+  - Dreame robot vacuums
+  - Xiaomi M30S (via dreame-vacuum)
+  - Xiaomi D103CN / M30S (via xiaomi_miot)
+  - Other compatible models
 
 ## Development
 
