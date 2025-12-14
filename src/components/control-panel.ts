@@ -2,7 +2,7 @@ import { LitElement, html, css } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
-import type { Room, CleaningType } from "../types";
+import type { Room, CleaningType, VacuumIntegration } from "../types";
 import { VacuumService } from "../services/vacuum.service";
 import { translate } from "../utils/i18n";
 import { getVacuumRobotSVG } from "../utils/svg-loader";
@@ -18,6 +18,7 @@ export class ControlPanel extends LitElement {
   @property({ attribute: false }) public hiddenRooms: number[] = [];
   @property() public showRoomIds = false;
   @property({ attribute: false }) public roomIcons: Record<number, string | { entity_id: string }> = {};
+  @property() public integration!: VacuumIntegration;
 
   @state() private _vacuumService?: VacuumService;
   @state() private _currentCleaningRooms: number[] = [];
@@ -25,8 +26,8 @@ export class ControlPanel extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    if (this.hass && this.entity) {
-      this._vacuumService = new VacuumService(this.hass, this.entity);
+    if (this.hass && this.entity && this.integration) {
+      this._vacuumService = new VacuumService(this.hass, this.entity, this.integration);
       this._updateCleaningRooms();
       this._subscribeToStateChanges();
     }
@@ -38,9 +39,9 @@ export class ControlPanel extends LitElement {
   }
 
   updated(changedProperties: Map<string | number | symbol, unknown>): void {
-    if (changedProperties.has("hass") || changedProperties.has("entity")) {
-      if (this.hass && this.entity) {
-        this._vacuumService = new VacuumService(this.hass, this.entity);
+    if (changedProperties.has("hass") || changedProperties.has("entity") || changedProperties.has("integration")) {
+      if (this.hass && this.entity && this.integration) {
+        this._vacuumService = new VacuumService(this.hass, this.entity, this.integration);
         this._updateCleaningRooms();
         this._subscribeToStateChanges();
       }

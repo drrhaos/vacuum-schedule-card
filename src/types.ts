@@ -1,8 +1,11 @@
 export type CleaningType = "vacuum" | "mop" | "vacuum_and_mop";
 
+export type VacuumIntegration = "dreame_vacuum" | "xiaomi_miot" | "standard";
+
 export interface VacuumScheduleCardConfig {
   entity: string;
   type: string;
+  integration: VacuumIntegration; // Тип интеграции: dreame_vacuum, xiaomi_miot или standard
   title?: string; // Кастомный заголовок карточки
   hidden_rooms?: number[]; // Список ID комнат, которые нужно скрыть из выбора
   show_room_ids?: boolean; // Показывать ID комнат на кнопках

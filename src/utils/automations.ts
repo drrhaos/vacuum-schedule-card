@@ -1,5 +1,5 @@
 import type { HomeAssistant } from "custom-card-helpers";
-import type { Schedule, CleaningType } from "../types";
+import type { Schedule, CleaningType, VacuumIntegration } from "../types";
 import type {
   AutomationConfig,
   AutomationTrigger,
@@ -435,7 +435,8 @@ export function createAutomationFromSchedule(
   day: number,
   entity: string,
   dayNames: string[],
-  scheduleTitle: string
+  scheduleTitle: string,
+  integration: VacuumIntegration
 ): AutomationConfig {
   const automationId = `${AUTOMATION_PREFIX}${schedule.id}_day_${day}`;
   const dayName = getWeekdayName(day);
@@ -468,16 +469,36 @@ export function createAutomationFromSchedule(
       },
     });
   } else {
-    // Для конкретных комнат используем vacuum_clean_segment
-    actions.push({
-      service: "dreame_vacuum.vacuum_clean_segment",
-      target: {
-        entity_id: entity,
-      },
-      data: {
-        segments: schedule.rooms,
-      },
-    });
+    // Для конкретных комнат используем соответствующий сервис
+    if (integration === "dreame_vacuum") {
+      actions.push({
+        service: "dreame_vacuum.vacuum_clean_segment",
+        target: {
+          entity_id: entity,
+        },
+        data: {
+          segments: schedule.rooms,
+        },
+      });
+    } else if (integration === "xiaomi_miot") {
+      actions.push({
+        service: "xiaomi_miot.vacuum_clean_segment",
+        target: {
+          entity_id: entity,
+        },
+        data: {
+          segments: schedule.rooms,
+        },
+      });
+    } else {
+      // Для стандартных пылесосов используем vacuum.start
+      actions.push({
+        service: "vacuum.start",
+        target: {
+          entity_id: entity,
+        },
+      });
+    }
   }
 
   return {

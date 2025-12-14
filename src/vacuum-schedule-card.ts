@@ -30,10 +30,13 @@ class VacuumScheduleCard extends LitElement {
     if (!config.entity) {
       throw new Error("Entity must be specified");
     }
+    if (!config.integration) {
+      throw new Error("Integration must be specified (dreame_vacuum, xiaomi_miot, or standard)");
+    }
     this._config = config;
     this.entity = config.entity;
     if (this.hass) {
-      this._scheduleService = new ScheduleService(this.hass, this.entity, (key) => this._t(key));
+      this._scheduleService = new ScheduleService(this.hass, this.entity, config.integration, (key) => this._t(key));
       this._loadSchedules();
       this._loadRooms();
     }
@@ -41,8 +44,8 @@ class VacuumScheduleCard extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    if (this.hass && this.entity) {
-      this._scheduleService = new ScheduleService(this.hass, this.entity, (key) => this._t(key));
+    if (this.hass && this.entity && this._config?.integration) {
+      this._scheduleService = new ScheduleService(this.hass, this.entity, this._config.integration, (key) => this._t(key));
       this._loadSchedules();
       this._loadRooms();
       this._subscribeToAutomationChanges();
@@ -251,6 +254,7 @@ class VacuumScheduleCard extends LitElement {
         <vacuum-control-panel
           .hass=${this.hass}
           .entity=${this.entity}
+          .integration=${this._config?.integration}
           .rooms=${this._rooms}
           .selectedRooms=${this._selectedRoomsForControl}
           .hiddenRooms=${this._config?.hidden_rooms || []}
@@ -306,6 +310,7 @@ class VacuumScheduleCard extends LitElement {
     return {
       entity: "vacuum.example",
       type: "custom:vacuum-schedule-card",
+      integration: "dreame_vacuum",
       title: undefined,
       hidden_rooms: [],
       show_room_ids: false,
